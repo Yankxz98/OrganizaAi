@@ -5,11 +5,13 @@ import { Travel, TravelExpense, StorageService } from '../utils/storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Plus, Trash2 } from 'lucide-react-native';
+import { useEvent } from '../utils/EventContext';
 
 export default function TravelForm() {
   const { colors } = useTheme();
   const router = useRouter();
   const { id } = useLocalSearchParams();
+  const { triggerEvent } = useEvent();
   const isNew = id === 'new';
 
   const [travel, setTravel] = useState<Travel>({
@@ -77,6 +79,11 @@ export default function TravelForm() {
       const success = await StorageService.saveTravel(updatedTravel);
       
       if (success) {
+        // Disparar evento para notificar que uma viagem foi atualizada
+        setTimeout(() => {
+          triggerEvent('TRAVEL_UPDATED');
+        }, 300);
+        
         router.push('/travels');
       } else {
         Alert.alert('Erro', 'Não foi possível salvar a viagem');

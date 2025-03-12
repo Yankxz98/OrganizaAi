@@ -1,16 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react-native';
+import { Plus, Trash2, ChevronDown, ChevronUp, ArrowRight } from 'lucide-react-native';
 import { Travel, StorageService } from '../utils/storage';
+import { useTheme } from '../theme/ThemeContext';
+import { useEvent } from '../utils/EventContext';
 
 export default function TravelsScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
+  const { subscribeToEvent } = useEvent();
   const [travels, setTravels] = useState<Travel[]>([]);
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
   useEffect(() => {
     loadTravels();
+    
+    // Inscrever-se no evento TRAVEL_UPDATED
+    const unsubscribe = subscribeToEvent('TRAVEL_UPDATED', () => {
+      console.log('Evento TRAVEL_UPDATED recebido, atualizando lista de viagens');
+      loadTravels();
+    });
+    
+    // Limpar inscrição quando o componente for desmontado
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   const loadTravels = async () => {
@@ -68,11 +83,18 @@ export default function TravelsScreen() {
     router.push(`/travel/${id}`);
   };
 
+  const handleViewTravelDetails = (id: number) => {
+    router.push(`/travel/details/${id}`);
+  };
+
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Minhas Viagens</Text>
-        <TouchableOpacity onPress={handleAddTravel} style={styles.addButton}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { backgroundColor: colors.card }]}>
+        <Text style={[styles.title, { color: colors.text.primary }]}>Minhas Viagens</Text>
+        <TouchableOpacity 
+          onPress={handleAddTravel} 
+          style={[styles.addButton, { backgroundColor: colors.primary }]}
+        >
           <Plus size={24} color="#fff" />
         </TouchableOpacity>
       </View>
@@ -86,41 +108,59 @@ export default function TravelsScreen() {
           const isExpanded = expandedId === item.id;
           
           return (
-            <View style={[styles.travelCard, isExpanded && styles.expandedCard]}>
+            <View style={[
+              styles.travelCard, 
+              { backgroundColor: colors.card },
+              isExpanded && styles.expandedCard
+            ]}>
               <TouchableOpacity
                 style={styles.cardHeader}
                 onPress={() => toggleExpand(item.id)}
               >
                 <View style={styles.cardHeaderContent}>
-                  <Text style={styles.travelName}>{item.name}</Text>
+                  <Text style={[styles.travelName, { color: colors.text.primary }]}>
+                    {item.name}
+                  </Text>
                   <Text style={[
                     styles.remainingDays,
-                    hasStarted ? styles.startedText : remainingDays <= 7 ? styles.closeText : {}
+                    { color: colors.text.secondary },
+                    hasStarted ? { color: colors.success } : 
+                    remainingDays <= 7 ? { color: colors.danger } : {}
                   ]}>
                     {hasStarted
                       ? 'Viagem em andamento'
                       : `Faltam ${remainingDays} ${remainingDays === 1 ? 'dia' : 'dias'}`}
                   </Text>
                 </View>
-                {isExpanded ? <ChevronUp size={20} color="#64748b" /> : <ChevronDown size={20} color="#64748b" />}
+                {isExpanded ? 
+                  <ChevronUp size={20} color={colors.text.secondary} /> : 
+                  <ChevronDown size={20} color={colors.text.secondary} />
+                }
               </TouchableOpacity>
               
               {isExpanded && (
-                <View style={styles.expandedContent}>
+                <View style={[styles.expandedContent, { backgroundColor: colors.card }]}>
                   <View style={styles.travelDates}>
-                    <Text style={styles.sectionTitle}>Período:</Text>
-                    <Text style={styles.dateText}>
+                    <Text style={[styles.sectionTitle, { color: colors.text.secondary }]}>
+                      Período:
+                    </Text>
+                    <Text style={[styles.dateText, { color: colors.text.primary }]}>
                       {formatDate(item.startDate)} - {formatDate(item.endDate)}
                     </Text>
                   </View>
                   
                   <View style={styles.budgetSection}>
-                    <Text style={styles.sectionTitle}>Orçamento:</Text>
+                    <Text style={[styles.sectionTitle, { color: colors.text.secondary }]}>
+                      Orçamento:
+                    </Text>
                     <View style={styles.budgetInfo}>
-                      <Text style={styles.budgetText}>
+                      <Text style={[styles.budgetText, { color: colors.text.primary }]}>
                         Total: R$ {item.budget.total.toFixed(2)}
                       </Text>
-                      <Text style={styles.discretionaryText}>
+                      <Text style={[
+                        styles.discretionaryText, 
+                        { color: item.budget.discretionary >= 0 ? colors.success : colors.danger }
+                      ]}>
                         Disponível: R$ {item.budget.discretionary.toFixed(2)}
                       </Text>
                     </View>
@@ -128,17 +168,25 @@ export default function TravelsScreen() {
                   
                   <View style={styles.actionsRow}>
                     <TouchableOpacity
-                      style={[styles.actionButton, styles.editButton]}
+                      style={[styles.actionButton, styles.viewButton, { backgroundColor: colors.primary }]}
+                      onPress={() => handleViewTravelDetails(item.id)}
+                    >
+                      <Text style={styles.actionButtonText}>Ver Detalhes</Text>
+                      <ArrowRight size={16} color="#fff" style={styles.actionIcon} />
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity
+                      style={[styles.actionButton, styles.editButton, { backgroundColor: colors.primary }]}
                       onPress={() => handleEditTravel(item.id)}
                     >
                       <Text style={styles.actionButtonText}>Editar</Text>
                     </TouchableOpacity>
                     
                     <TouchableOpacity
-                      style={[styles.actionButton, styles.deleteButtonStyle]}
+                      style={[styles.actionButton, styles.deleteButton, { backgroundColor: colors.danger }]}
                       onPress={() => handleDeleteTravel(item)}
                     >
-                      <Text style={styles.deleteButtonText}>Excluir</Text>
+                      <Text style={styles.actionButtonText}>Excluir</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -148,8 +196,12 @@ export default function TravelsScreen() {
         }}
         ListEmptyComponent={() => (
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>Nenhuma viagem cadastrada</Text>
-            <Text style={styles.emptySubtext}>Toque no + para adicionar uma nova viagem</Text>
+            <Text style={[styles.emptyText, { color: colors.text.primary }]}>
+              Nenhuma viagem cadastrada
+            </Text>
+            <Text style={[styles.emptySubtext, { color: colors.text.secondary }]}>
+              Toque no + para adicionar uma nova viagem
+            </Text>
           </View>
         )}
       />
@@ -160,7 +212,6 @@ export default function TravelsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
   },
   header: {
     flexDirection: 'row',
@@ -173,10 +224,8 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#0f172a',
   },
   addButton: {
-    backgroundColor: '#0ea5e9',
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -184,13 +233,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   travelCard: {
-    backgroundColor: '#fff',
     marginHorizontal: 16,
     marginTop: 16,
     borderRadius: 8,
+    overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#e5e5e5',
-    overflow: 'hidden',
   },
   expandedCard: {
     shadowColor: '#000',
@@ -211,14 +259,15 @@ const styles = StyleSheet.create({
   travelName: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#0f172a',
     marginBottom: 4,
+  },
+  remainingDays: {
+    fontSize: 14,
   },
   expandedContent: {
     padding: 16,
     borderTopWidth: 1,
     borderTopColor: '#e5e5e5',
-    backgroundColor: '#f8fafc',
   },
   travelDates: {
     marginBottom: 12,
@@ -226,12 +275,10 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#64748b',
     marginBottom: 4,
   },
   dateText: {
     fontSize: 16,
-    color: '#0f172a',
   },
   budgetSection: {
     marginBottom: 16,
@@ -242,69 +289,56 @@ const styles = StyleSheet.create({
   },
   budgetText: {
     fontSize: 16,
-    color: '#0f172a',
   },
   discretionaryText: {
     fontSize: 16,
-    color: '#0f172a',
-  },
-  remainingDays: {
-    fontSize: 14,
-    color: '#0ea5e9',
     fontWeight: '500',
-  },
-  startedText: {
-    color: '#10b981',
-  },
-  closeText: {
-    color: '#f59e0b',
   },
   actionsRow: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginTop: 8,
+    justifyContent: 'space-between',
   },
   actionButton: {
     paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     borderRadius: 4,
-    marginLeft: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  viewButton: {
+    flex: 2,
+    marginRight: 8,
   },
   editButton: {
-    backgroundColor: '#0ea5e9',
+    flex: 1,
+    marginRight: 8,
   },
-  deleteButtonStyle: {
-    backgroundColor: '#ef4444',
+  deleteButton: {
+    flex: 1,
   },
   actionButtonText: {
     color: '#fff',
     fontWeight: '500',
   },
-  deleteButtonText: {
-    color: '#fff',
-    fontWeight: '500',
-  },
-  deleteButton: {
-    padding: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderLeftWidth: 1,
-    borderLeftColor: '#e5e5e5',
+  actionIcon: {
+    marginLeft: 4,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
-    marginTop: 100,
+    padding: 32,
+    marginTop: 32,
   },
   emptyText: {
-    fontSize: 16,
-    color: '#64748b',
+    fontSize: 18,
+    fontWeight: 'bold',
     marginBottom: 8,
+    textAlign: 'center',
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#94a3b8',
+    textAlign: 'center',
   },
 }); 

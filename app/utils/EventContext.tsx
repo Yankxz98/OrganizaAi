@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 
-type EventType = 'EXPENSE_UPDATED' | 'INCOME_UPDATED';
+type EventType = 'EXPENSE_UPDATED' | 'INCOME_UPDATED' | 'TRAVEL_UPDATED';
 
 interface EventContextType {
   triggerEvent: (eventType: EventType) => void;

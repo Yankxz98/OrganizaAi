@@ -3,18 +3,22 @@ import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert } from 
 import { useTheme } from '../../theme/ThemeContext';
 import { Travel, TravelExpense, StorageService } from '../../utils/storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Plus, Edit2, ArrowLeft } from 'lucide-react-native';
+import { Plus, Edit2, ArrowLeft, Calendar, MapPin } from 'lucide-react-native';
+import TravelItinerary from '../../components/TravelItinerary';
+import { useEvent } from '../../utils/EventContext';
 
 export default function TravelDetails() {
   const { colors } = useTheme();
   const router = useRouter();
   const { id } = useLocalSearchParams();
+  const { triggerEvent } = useEvent();
   const [travel, setTravel] = useState<Travel | null>(null);
   const [newExpense, setNewExpense] = useState<Partial<TravelExpense>>({
     category: 'other',
     description: '',
     amount: 0
   });
+  const [activeTab, setActiveTab] = useState<'expenses' | 'itinerary'>('expenses');
 
   useEffect(() => {
     loadTravel();
@@ -65,11 +69,21 @@ export default function TravelDetails() {
 
     await StorageService.saveTravel(updatedTravel);
     setTravel(updatedTravel);
+    
+    // Disparar evento para notificar que uma viagem foi atualizada
+    setTimeout(() => {
+      triggerEvent('TRAVEL_UPDATED');
+    }, 300);
+    
     setNewExpense({
       category: 'other',
       description: '',
       amount: 0
     });
+  };
+
+  const handleUpdateTravel = (updatedTravel: Travel) => {
+    setTravel(updatedTravel);
   };
 
   if (!travel) {
@@ -100,78 +114,117 @@ export default function TravelDetails() {
         </Pressable>
       </View>
 
-      <ScrollView style={styles.content}>
-        <View style={[styles.budgetCard, { backgroundColor: colors.card }]}>
-          <View style={styles.budgetItem}>
-            <Text style={[styles.budgetLabel, { color: colors.text.secondary }]}>Orçamento Total</Text>
-            <Text style={[styles.budgetValue, { color: colors.text.primary }]}>
-              R$ {travel.budget.total.toFixed(2)}
-            </Text>
-          </View>
-
-          <View style={styles.budgetItem}>
-            <Text style={[styles.budgetLabel, { color: colors.text.secondary }]}>Saldo Restante</Text>
-            <Text style={[styles.budgetValue, { 
-              color: calculateRemainingBudget() >= 0 ? colors.success : colors.danger 
-            }]}>
-              R$ {calculateRemainingBudget().toFixed(2)}
-            </Text>
-          </View>
-
-          <View style={styles.budgetItem}>
-            <Text style={[styles.budgetLabel, { color: colors.text.secondary }]}>Livre para Gastar</Text>
-            <Text style={[styles.budgetValue, { 
-              color: calculateDiscretionaryRemaining() >= 0 ? colors.success : colors.danger 
-            }]}>
-              R$ {calculateDiscretionaryRemaining().toFixed(2)}
-            </Text>
-          </View>
+      <View style={[styles.budgetCard, { backgroundColor: colors.card }]}>
+        <View style={styles.budgetItem}>
+          <Text style={[styles.budgetLabel, { color: colors.text.secondary }]}>Orçamento Total</Text>
+          <Text style={[styles.budgetValue, { color: colors.text.primary }]}>
+            R$ {travel.budget.total.toFixed(2)}
+          </Text>
         </View>
 
-        <View style={styles.expensesContainer}>
-          <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>Gastos da Viagem</Text>
-          
-          {travel.expenses.map(expense => (
-            <View key={expense.id} style={[styles.expenseItem, { backgroundColor: colors.card }]}>
-              <View style={styles.expenseInfo}>
-                <Text style={[styles.expenseDescription, { color: colors.text.primary }]}>
-                  {expense.description}
-                </Text>
-                <Text style={[styles.expenseDate, { color: colors.text.secondary }]}>
-                  {new Date(expense.date).toLocaleDateString()}
+        <View style={styles.budgetItem}>
+          <Text style={[styles.budgetLabel, { color: colors.text.secondary }]}>Saldo Restante</Text>
+          <Text style={[styles.budgetValue, { 
+            color: calculateRemainingBudget() >= 0 ? colors.success : colors.danger 
+          }]}>
+            R$ {calculateRemainingBudget().toFixed(2)}
+          </Text>
+        </View>
+
+        <View style={styles.budgetItem}>
+          <Text style={[styles.budgetLabel, { color: colors.text.secondary }]}>Livre para Gastar</Text>
+          <Text style={[styles.budgetValue, { 
+            color: calculateDiscretionaryRemaining() >= 0 ? colors.success : colors.danger 
+          }]}>
+            R$ {calculateDiscretionaryRemaining().toFixed(2)}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.tabsContainer}>
+        <Pressable 
+          style={[
+            styles.tabButton, 
+            activeTab === 'expenses' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }
+          ]}
+          onPress={() => setActiveTab('expenses')}
+        >
+          <Text style={[
+            styles.tabText, 
+            { color: activeTab === 'expenses' ? colors.primary : colors.text.secondary }
+          ]}>
+            Despesas
+          </Text>
+        </Pressable>
+        <Pressable 
+          style={[
+            styles.tabButton, 
+            activeTab === 'itinerary' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }
+          ]}
+          onPress={() => setActiveTab('itinerary')}
+        >
+          <Text style={[
+            styles.tabText, 
+            { color: activeTab === 'itinerary' ? colors.primary : colors.text.secondary }
+          ]}>
+            Itinerário
+          </Text>
+        </Pressable>
+      </View>
+
+      {activeTab === 'expenses' ? (
+        <ScrollView style={styles.content}>
+          <View style={styles.expensesContainer}>
+            <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>Gastos da Viagem</Text>
+            
+            {travel.expenses.map(expense => (
+              <View key={expense.id} style={[styles.expenseItem, { backgroundColor: colors.card }]}>
+                <View style={styles.expenseInfo}>
+                  <Text style={[styles.expenseDescription, { color: colors.text.primary }]}>
+                    {expense.description}
+                  </Text>
+                  <Text style={[styles.expenseDate, { color: colors.text.secondary }]}>
+                    {new Date(expense.date).toLocaleDateString()}
+                  </Text>
+                </View>
+                <Text style={[styles.expenseAmount, { color: colors.text.primary }]}>
+                  R$ {expense.amount.toFixed(2)}
                 </Text>
               </View>
-              <Text style={[styles.expenseAmount, { color: colors.text.primary }]}>
-                R$ {expense.amount.toFixed(2)}
-              </Text>
-            </View>
-          ))}
+            ))}
 
-          <View style={[styles.addExpenseForm, { backgroundColor: colors.card }]}>
-            <TextInput
-              style={[styles.expenseInput, { color: colors.text.primary }]}
-              value={newExpense.description}
-              onChangeText={description => setNewExpense(prev => ({ ...prev, description }))}
-              placeholder="Descrição"
-              placeholderTextColor={colors.text.secondary}
-            />
-            <TextInput
-              style={[styles.expenseInput, { color: colors.text.primary }]}
-              value={newExpense.amount?.toString()}
-              onChangeText={amount => setNewExpense(prev => ({ ...prev, amount: Number(amount) || 0 }))}
-              keyboardType="numeric"
-              placeholder="Valor"
-              placeholderTextColor={colors.text.secondary}
-            />
-            <Pressable
-              onPress={handleAddExpense}
-              style={[styles.addButton, { backgroundColor: colors.primary }]}
-            >
-              <Plus size={20} color="#fff" />
-            </Pressable>
+            <View style={[styles.addExpenseForm, { backgroundColor: colors.card }]}>
+              <TextInput
+                style={[styles.expenseInput, { color: colors.text.primary }]}
+                value={newExpense.description}
+                onChangeText={description => setNewExpense(prev => ({ ...prev, description }))}
+                placeholder="Descrição"
+                placeholderTextColor={colors.text.secondary}
+              />
+              <TextInput
+                style={[styles.expenseInput, { color: colors.text.primary }]}
+                value={newExpense.amount?.toString()}
+                onChangeText={amount => setNewExpense(prev => ({ ...prev, amount: Number(amount) || 0 }))}
+                keyboardType="numeric"
+                placeholder="Valor"
+                placeholderTextColor={colors.text.secondary}
+              />
+              <Pressable
+                onPress={handleAddExpense}
+                style={[styles.addButton, { backgroundColor: colors.primary }]}
+              >
+                <Plus size={20} color="#fff" />
+              </Pressable>
+            </View>
           </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      ) : (
+        <TravelItinerary 
+          travel={travel} 
+          onUpdate={handleUpdateTravel} 
+          colors={colors} 
+        />
+      )}
     </View>
   );
 }
@@ -202,48 +255,62 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 20,
-    fontWeight: '600',
+    fontWeight: 'bold',
   },
   dates: {
     fontSize: 14,
-    marginTop: 4,
   },
-  content: {
-    flex: 1,
-    padding: 16,
+  loadingText: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginTop: 20,
   },
   budgetCard: {
+    margin: 16,
     padding: 16,
-    borderRadius: 12,
-    marginBottom: 24,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    borderRadius: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
   budgetItem: {
-    marginBottom: 16,
+    alignItems: 'center',
   },
   budgetLabel: {
-    fontSize: 14,
+    fontSize: 12,
     marginBottom: 4,
   },
   budgetValue: {
-    fontSize: 24,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  tabsContainer: {
+    flexDirection: 'row',
+    marginHorizontal: 16,
+    marginBottom: 8,
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  tabText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  content: {
+    flex: 1,
   },
   expensesContainer: {
-    flex: 1,
+    padding: 16,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: 'bold',
     marginBottom: 16,
   },
   expenseItem: {
     flexDirection: 'row',
-    alignItems: 'center',
+    justifyContent: 'space-between',
     padding: 16,
     borderRadius: 8,
     marginBottom: 8,
@@ -253,6 +320,7 @@ const styles = StyleSheet.create({
   },
   expenseDescription: {
     fontSize: 16,
+    fontWeight: '500',
     marginBottom: 4,
   },
   expenseDate: {
@@ -260,31 +328,27 @@ const styles = StyleSheet.create({
   },
   expenseAmount: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: 'bold',
   },
   addExpenseForm: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 8,
+    padding: 12,
     borderRadius: 8,
     marginTop: 16,
   },
   expenseInput: {
     flex: 1,
-    height: 40,
     marginRight: 8,
-    paddingHorizontal: 12,
+    padding: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
   },
   addButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  loadingText: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginTop: 24,
   },
 }); 

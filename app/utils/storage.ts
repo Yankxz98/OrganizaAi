@@ -78,6 +78,18 @@ export interface TravelExpense {
   isPaid: boolean;
 }
 
+export interface TravelActivity {
+  id: number;
+  title: string;
+  category: 'passeio' | 'refeicao' | 'transporte' | 'hospedagem' | 'outro';
+  startDateTime: string;
+  endDateTime?: string;
+  location: string;
+  notes?: string;
+  estimatedCost?: number;
+  completed: boolean;
+}
+
 export interface Travel {
   id: number;
   name: string;
@@ -89,6 +101,7 @@ export interface Travel {
     discretionary: number;
   };
   expenses: TravelExpense[];
+  itinerary?: TravelActivity[];
 }
 
 export const StorageService = {
@@ -211,11 +224,13 @@ export const StorageService = {
   async saveTravel(travel: Travel) {
     try {
       const travels = await this.loadTravels();
-      const index = travels.findIndex(t => t.id === travel.id);
+      const existingIndex = travels.findIndex(t => t.id === travel.id);
       
-      if (index >= 0) {
-        travels[index] = travel;
+      if (existingIndex >= 0) {
+        // Atualizar viagem existente
+        travels[existingIndex] = travel;
       } else {
+        // Adicionar nova viagem
         travels.push(travel);
       }
       
