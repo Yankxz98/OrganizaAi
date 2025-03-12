@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from 'react-native';
 import { Plus, Coffee, ShoppingBag, Car, Heart, User, Package, Pencil, Trash2 } from 'lucide-react-native';
 import { StorageService, Expense } from '../utils/storage';
 import { EXPENSE_CATEGORIES } from '../utils/constants';
 import ExpenseForm from '../components/ExpenseForm';
 import MonthSelector from '../components/MonthSelector';
+import { useEvent } from '../utils/EventContext';
 
 const IconComponent = ({ name, color }: { name: string; color: string }) => {
   switch (name) {
@@ -30,97 +31,112 @@ export default function ExpensesScreen() {
   const [showForm, setShowForm] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const { triggerEvent } = useEvent();
+
+  const loadExpenses = useCallback(async () => {
+    try {
+      const data = await StorageService.loadExpenses(currentDate);
+      setExpenses(data);
+    } catch (error) {
+      console.error('Erro ao carregar despesas:', error);
+    }
+  }, [currentDate]);
 
   useEffect(() => {
     loadExpenses();
-  }, [currentDate]);
-
-  const loadExpenses = async () => {
-    const data = await StorageService.loadExpenses(currentDate);
-    setExpenses(data);
-  };
+  }, [loadExpenses]);
 
   const handleSaveExpense = async (expense: Expense) => {
-    let newExpenses;
-    if (editingExpense) {
-      // If editing an expense with installments, we need to handle future installments
-      if (expense.installments && expense.installments.total > 1) {
-        // Calculate amount per installment
-        const amountPerInstallment = expense.amount / expense.installments.total;
-        expense.amount = amountPerInstallment;
+    try {
+      let newExpenses;
+      if (editingExpense) {
+        // If editing an expense with installments, we need to handle future installments
+        if (expense.installments && expense.installments.total > 1) {
+          // Calculate amount per installment
+          const amountPerInstallment = expense.amount / expense.installments.total;
+          expense.amount = amountPerInstallment;
 
-        // If this is part of an existing installment group, delete all future installments
-        if (editingExpense.installments?.groupId) {
-          // Load and update all months that might have installments
-          for (let i = editingExpense.installments.current; i <= editingExpense.installments.total; i++) {
+          // If this is part of an existing installment group, delete all future installments
+          if (editingExpense.installments?.groupId) {
+            // Load and update all months that might have installments
+            for (let i = editingExpense.installments.current; i <= editingExpense.installments.total; i++) {
+              const futureDate = new Date(currentDate);
+              futureDate.setMonth(currentDate.getMonth() + (i - editingExpense.installments.current));
+              
+              // Load expenses for that month
+              const monthExpenses = await StorageService.loadExpenses(futureDate);
+              // Remove the installment for this group
+              const filteredExpenses = monthExpenses.filter(
+                e => e.installments?.groupId !== editingExpense.installments?.groupId
+              );
+              // Save the filtered expenses back
+              await StorageService.saveExpenses(filteredExpenses, futureDate);
+            }
+          }
+
+          // Create new future installments
+          for (let i = expense.installments.current + 1; i <= expense.installments.total; i++) {
             const futureDate = new Date(currentDate);
-            futureDate.setMonth(currentDate.getMonth() + (i - editingExpense.installments.current));
+            futureDate.setMonth(currentDate.getMonth() + (i - expense.installments.current));
             
-            // Load expenses for that month
-            const monthExpenses = await StorageService.loadExpenses(futureDate);
-            // Remove the installment for this group
-            const filteredExpenses = monthExpenses.filter(
-              e => e.installments?.groupId !== editingExpense.installments?.groupId
-            );
-            // Save the filtered expenses back
-            await StorageService.saveExpenses(filteredExpenses, futureDate);
+            const installment: Expense = {
+              ...expense,
+              id: Date.now() + i,
+              amount: amountPerInstallment,
+              installments: {
+                ...expense.installments,
+                current: i
+              }
+            };
+            
+            await StorageService.saveExpenses([installment], futureDate, true);
           }
         }
-
-        // Create new future installments
-        for (let i = expense.installments.current + 1; i <= expense.installments.total; i++) {
-          const futureDate = new Date(currentDate);
-          futureDate.setMonth(currentDate.getMonth() + (i - expense.installments.current));
+        
+        // Update current month expenses
+        newExpenses = expenses.map(e => e.id === editingExpense.id ? expense : e);
+      } else {
+        // Add new expense (existing code for new expenses)
+        if (expense.installments && expense.installments.total > 1) {
+          // Calculate amount per installment
+          const amountPerInstallment = expense.amount / expense.installments.total;
           
-          const installment: Expense = {
-            ...expense,
-            id: Date.now() + i,
-            amount: amountPerInstallment,
-            installments: {
-              ...expense.installments,
-              current: i
-            }
-          };
+          // Update the first installment amount
+          expense.amount = amountPerInstallment;
           
-          await StorageService.saveExpenses([installment], futureDate, true);
+          // Create future installments
+          for (let i = 2; i <= expense.installments.total; i++) {
+            const futureDate = new Date(currentDate);
+            futureDate.setMonth(currentDate.getMonth() + (i - 1));
+            
+            const installment: Expense = {
+              ...expense,
+              id: Date.now() + i,
+              amount: amountPerInstallment,
+              installments: {
+                ...expense.installments,
+                current: i
+              }
+            };
+            
+            await StorageService.saveExpenses([installment], futureDate, true);
+          }
         }
+        newExpenses = [...expenses, expense];
       }
+      await StorageService.saveExpenses(newExpenses, currentDate);
+      setExpenses(newExpenses);
+      setShowForm(false);
+      setEditingExpense(null);
       
-      // Update current month expenses
-      newExpenses = expenses.map(e => e.id === editingExpense.id ? expense : e);
-    } else {
-      // Add new expense (existing code for new expenses)
-      if (expense.installments && expense.installments.total > 1) {
-        // Calculate amount per installment
-        const amountPerInstallment = expense.amount / expense.installments.total;
-        
-        // Update the first installment amount
-        expense.amount = amountPerInstallment;
-        
-        // Create future installments
-        for (let i = 2; i <= expense.installments.total; i++) {
-          const futureDate = new Date(currentDate);
-          futureDate.setMonth(currentDate.getMonth() + (i - 1));
-          
-          const installment: Expense = {
-            ...expense,
-            id: Date.now() + i,
-            amount: amountPerInstallment,
-            installments: {
-              ...expense.installments,
-              current: i
-            }
-          };
-          
-          await StorageService.saveExpenses([installment], futureDate, true);
-        }
-      }
-      newExpenses = [...expenses, expense];
+      // Disparar evento para atualizar o dashboard
+      setTimeout(() => {
+        triggerEvent('EXPENSE_UPDATED');
+      }, 0);
+    } catch (error) {
+      console.error('Erro ao salvar despesa:', error);
+      Alert.alert('Erro', 'Ocorreu um erro ao salvar a despesa');
     }
-    await StorageService.saveExpenses(newExpenses, currentDate);
-    setExpenses(newExpenses);
-    setShowForm(false);
-    setEditingExpense(null);
   };
 
   const handleEditExpense = (expense: Expense) => {
@@ -144,6 +160,9 @@ export default function ExpensesScreen() {
             const newExpenses = expenses.filter(e => e.id !== expense.id);
             await StorageService.saveExpenses(newExpenses, currentDate);
             setExpenses(newExpenses);
+            
+            // Disparar evento para atualizar o dashboard
+            triggerEvent('EXPENSE_UPDATED');
           },
         },
       ],
@@ -186,9 +205,10 @@ export default function ExpensesScreen() {
         </Pressable>
       </View>
 
-      <View style={styles.monthSelectorContainer}>
-        <MonthSelector currentDate={currentDate} onMonthChange={handleMonthChange} />
-      </View>
+      <MonthSelector 
+        currentDate={currentDate} 
+        onMonthChange={handleMonthChange} 
+      />
 
       {showForm ? (
         <ExpenseForm
@@ -278,24 +298,23 @@ export default function ExpensesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#fff',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#ffffff',
+    padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    borderBottomColor: '#e5e5e5',
   },
   title: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#1e293b',
+    color: '#0f172a',
   },
   addButton: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#0ea5e9',
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -405,9 +424,6 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     backgroundColor: '#ef4444',
-  },
-  monthSelectorContainer: {
-    marginVertical: 16,
   },
   installmentBadge: {
     paddingHorizontal: 4,

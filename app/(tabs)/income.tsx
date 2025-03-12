@@ -1,61 +1,58 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from 'react-native';
-import { Plus, Briefcase, Building2, Coins, Pencil, Trash2, ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { Plus, Briefcase, Building2, Coins, Pencil, Trash2 } from 'lucide-react-native';
 import { StorageService, Income } from '../utils/storage';
 import IncomeForm from '../components/IncomeForm';
+import MonthSelector from '../components/MonthSelector';
+import { useEvent } from '../utils/EventContext';
 
 export default function IncomeScreen() {
   const [incomes, setIncomes] = useState<Income[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingIncome, setEditingIncome] = useState<Income | null>(null);
   const [currentDate, setCurrentDate] = useState(new Date());
+  const { triggerEvent } = useEvent();
+
+  const loadIncomes = useCallback(async () => {
+    try {
+      const data = await StorageService.loadIncome();
+      setIncomes(data);
+    } catch (error) {
+      console.error('Erro ao carregar rendas:', error);
+    }
+  }, []);
 
   useEffect(() => {
     loadIncomes();
-  }, []);
+  }, [loadIncomes]);
 
-  const loadIncomes = async () => {
-    const data = await StorageService.loadIncome();
-    setIncomes(data);
-  };
-
-  const handlePreviousMonth = () => {
-    setCurrentDate(prev => {
-      const newDate = new Date(prev);
-      newDate.setMonth(prev.getMonth() - 1);
-      return newDate;
-    });
-  };
-
-  const handleNextMonth = () => {
-    setCurrentDate(prev => {
-      const newDate = new Date(prev);
-      newDate.setMonth(prev.getMonth() + 1);
-      return newDate;
-    });
-  };
-
-  const formatMonth = (date: Date) => {
-    const month = date.toLocaleDateString('pt-BR', { month: 'long' });
-    return {
-      month: month.charAt(0).toUpperCase() + month.slice(1),
-      year: date.getFullYear().toString()
-    };
+  const handleMonthChange = (date: Date) => {
+    setCurrentDate(date);
   };
 
   const handleSaveIncome = async (income: Income) => {
-    let newIncomes;
-    if (editingIncome) {
-      // Update existing income
-      newIncomes = incomes.map(i => i.id === editingIncome.id ? income : i);
-    } else {
-      // Add new income
-      newIncomes = [...incomes, income];
+    try {
+      let newIncomes;
+      if (editingIncome) {
+        // Update existing income
+        newIncomes = incomes.map(i => i.id === editingIncome.id ? income : i);
+      } else {
+        // Add new income
+        newIncomes = [...incomes, income];
+      }
+      await StorageService.saveIncome(newIncomes);
+      setIncomes(newIncomes);
+      setShowForm(false);
+      setEditingIncome(null);
+      
+      // Disparar evento para atualizar o dashboard
+      setTimeout(() => {
+        triggerEvent('INCOME_UPDATED');
+      }, 0);
+    } catch (error) {
+      console.error('Erro ao salvar renda:', error);
+      Alert.alert('Erro', 'Ocorreu um erro ao salvar a renda');
     }
-    await StorageService.saveIncome(newIncomes);
-    setIncomes(newIncomes);
-    setShowForm(false);
-    setEditingIncome(null);
   };
 
   const handleEditIncome = (income: Income) => {
@@ -76,9 +73,19 @@ export default function IncomeScreen() {
           text: 'Excluir',
           style: 'destructive',
           onPress: async () => {
-            const newIncomes = incomes.filter(i => i.id !== income.id);
-            await StorageService.saveIncome(newIncomes);
-            setIncomes(newIncomes);
+            try {
+              const newIncomes = incomes.filter(i => i.id !== income.id);
+              await StorageService.saveIncome(newIncomes);
+              setIncomes(newIncomes);
+              
+              // Disparar evento para atualizar o dashboard
+              setTimeout(() => {
+                triggerEvent('INCOME_UPDATED');
+              }, 0);
+            } catch (error) {
+              console.error('Erro ao excluir renda:', error);
+              Alert.alert('Erro', 'Ocorreu um erro ao excluir a renda');
+            }
           },
         },
       ],
@@ -135,24 +142,10 @@ export default function IncomeScreen() {
         </Pressable>
       </View>
 
-      <View style={styles.monthSelector}>
-        <Pressable 
-          style={[styles.monthButton, styles.monthButtonLeft]} 
-          onPress={handlePreviousMonth}
-        >
-          <ChevronLeft size={24} color="#64748b" />
-        </Pressable>
-        <View style={styles.monthTextContainer}>
-          <Text style={styles.monthText}>{formatMonth(currentDate).month}</Text>
-          <Text style={styles.yearText}>{formatMonth(currentDate).year}</Text>
-        </View>
-        <Pressable 
-          style={[styles.monthButton, styles.monthButtonRight]} 
-          onPress={handleNextMonth}
-        >
-          <ChevronRight size={24} color="#64748b" />
-        </Pressable>
-      </View>
+      <MonthSelector 
+        currentDate={currentDate} 
+        onMonthChange={handleMonthChange} 
+      />
 
       {showForm ? (
         <IncomeForm
@@ -394,39 +387,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#1e293b',
-  },
-  monthSelector: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 16,
-    backgroundColor: '#ffffff',
-    gap: 16,
-  },
-  monthButton: {
-    padding: 8,
-  },
-  monthTextContainer: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  monthText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1e293b',
-    textTransform: 'capitalize',
-  },
-  yearText: {
-    fontSize: 12,
-    color: '#64748b',
-  },
-  monthButtonLeft: {
-    paddingLeft: 0,
-  },
-  monthButtonRight: {
-    paddingRight: 0,
   },
 });

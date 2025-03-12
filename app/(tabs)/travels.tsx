@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Plus, Trash2 } from 'lucide-react-native';
+import { Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { Travel, StorageService } from '../utils/storage';
 
 export default function TravelsScreen() {
   const router = useRouter();
   const [travels, setTravels] = useState<Travel[]>([]);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
 
   useEffect(() => {
     loadTravels();
@@ -59,6 +60,14 @@ export default function TravelsScreen() {
     );
   };
 
+  const toggleExpand = (id: number) => {
+    setExpandedId(expandedId === id ? null : id);
+  };
+
+  const handleEditTravel = (id: number) => {
+    router.push(`/travel/${id}`);
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -74,42 +83,66 @@ export default function TravelsScreen() {
         renderItem={({ item }) => {
           const remainingDays = calculateRemainingDays(item.startDate);
           const hasStarted = remainingDays <= 0;
+          const isExpanded = expandedId === item.id;
           
           return (
-            <View style={styles.travelCard}>
+            <View style={[styles.travelCard, isExpanded && styles.expandedCard]}>
               <TouchableOpacity
-                style={styles.cardContent}
-                onPress={() => router.push(`/travel/${item.id}`)}
+                style={styles.cardHeader}
+                onPress={() => toggleExpand(item.id)}
               >
-                <Text style={styles.travelName}>{item.name}</Text>
-                <View style={styles.travelDates}>
-                  <Text style={styles.dateText}>
-                    {formatDate(item.startDate)} - {formatDate(item.endDate)}
+                <View style={styles.cardHeaderContent}>
+                  <Text style={styles.travelName}>{item.name}</Text>
+                  <Text style={[
+                    styles.remainingDays,
+                    hasStarted ? styles.startedText : remainingDays <= 7 ? styles.closeText : {}
+                  ]}>
+                    {hasStarted
+                      ? 'Viagem em andamento'
+                      : `Faltam ${remainingDays} ${remainingDays === 1 ? 'dia' : 'dias'}`}
                   </Text>
                 </View>
-                <View style={styles.budgetInfo}>
-                  <Text style={styles.budgetText}>
-                    Orçamento: R$ {item.budget.total.toFixed(2)}
-                  </Text>
-                  <Text style={styles.discretionaryText}>
-                    Disponível: R$ {item.budget.discretionary.toFixed(2)}
-                  </Text>
+                {isExpanded ? <ChevronUp size={20} color="#64748b" /> : <ChevronDown size={20} color="#64748b" />}
+              </TouchableOpacity>
+              
+              {isExpanded && (
+                <View style={styles.expandedContent}>
+                  <View style={styles.travelDates}>
+                    <Text style={styles.sectionTitle}>Período:</Text>
+                    <Text style={styles.dateText}>
+                      {formatDate(item.startDate)} - {formatDate(item.endDate)}
+                    </Text>
+                  </View>
+                  
+                  <View style={styles.budgetSection}>
+                    <Text style={styles.sectionTitle}>Orçamento:</Text>
+                    <View style={styles.budgetInfo}>
+                      <Text style={styles.budgetText}>
+                        Total: R$ {item.budget.total.toFixed(2)}
+                      </Text>
+                      <Text style={styles.discretionaryText}>
+                        Disponível: R$ {item.budget.discretionary.toFixed(2)}
+                      </Text>
+                    </View>
+                  </View>
+                  
+                  <View style={styles.actionsRow}>
+                    <TouchableOpacity
+                      style={[styles.actionButton, styles.editButton]}
+                      onPress={() => handleEditTravel(item.id)}
+                    >
+                      <Text style={styles.actionButtonText}>Editar</Text>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity
+                      style={[styles.actionButton, styles.deleteButtonStyle]}
+                      onPress={() => handleDeleteTravel(item)}
+                    >
+                      <Text style={styles.deleteButtonText}>Excluir</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-                <Text style={[
-                  styles.remainingDays,
-                  hasStarted ? styles.startedText : remainingDays <= 7 ? styles.closeText : {}
-                ]}>
-                  {hasStarted
-                    ? 'Viagem em andamento'
-                    : `Faltam ${remainingDays} ${remainingDays === 1 ? 'dia' : 'dias'}`}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.deleteButton}
-                onPress={() => handleDeleteTravel(item)}
-              >
-                <Trash2 size={20} color="#ef4444" />
-              </TouchableOpacity>
+              )}
             </View>
           );
         }}
@@ -157,37 +190,63 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#e5e5e5',
-    flexDirection: 'row',
+    overflow: 'hidden',
   },
-  cardContent: {
-    flex: 1,
+  expandedCard: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     padding: 16,
+  },
+  cardHeaderContent: {
+    flex: 1,
   },
   travelName: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#0f172a',
-    marginBottom: 8,
+    marginBottom: 4,
+  },
+  expandedContent: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e5e5',
+    backgroundColor: '#f8fafc',
   },
   travelDates: {
-    marginBottom: 8,
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#64748b',
+    marginBottom: 4,
   },
   dateText: {
-    fontSize: 14,
-    color: '#64748b',
+    fontSize: 16,
+    color: '#0f172a',
+  },
+  budgetSection: {
+    marginBottom: 16,
   },
   budgetInfo: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
   },
   budgetText: {
-    fontSize: 14,
-    color: '#64748b',
+    fontSize: 16,
+    color: '#0f172a',
   },
   discretionaryText: {
-    fontSize: 14,
-    color: '#64748b',
+    fontSize: 16,
+    color: '#0f172a',
   },
   remainingDays: {
     fontSize: 14,
@@ -199,6 +258,31 @@ const styles = StyleSheet.create({
   },
   closeText: {
     color: '#f59e0b',
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 8,
+  },
+  actionButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 4,
+    marginLeft: 8,
+  },
+  editButton: {
+    backgroundColor: '#0ea5e9',
+  },
+  deleteButtonStyle: {
+    backgroundColor: '#ef4444',
+  },
+  actionButtonText: {
+    color: '#fff',
+    fontWeight: '500',
+  },
+  deleteButtonText: {
+    color: '#fff',
+    fontWeight: '500',
   },
   deleteButton: {
     padding: 16,

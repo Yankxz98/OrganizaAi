@@ -1,12 +1,21 @@
+import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { useTheme } from '../theme/ThemeContext';
 
 interface MonthSelectorProps {
   currentDate: Date;
   onMonthChange: (date: Date) => void;
+  containerStyle?: object;
 }
 
-export default function MonthSelector({ currentDate, onMonthChange }: MonthSelectorProps) {
+export default function MonthSelector({ 
+  currentDate, 
+  onMonthChange,
+  containerStyle 
+}: MonthSelectorProps) {
+  const { colors } = useTheme();
+  
   const months = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
@@ -25,18 +34,30 @@ export default function MonthSelector({ currentDate, onMonthChange }: MonthSelec
   };
 
   return (
-    <View style={styles.container}>
-      <Pressable onPress={goToPreviousMonth} style={styles.button}>
-        <ChevronLeft size={24} color="#64748b" />
+    <View style={[styles.container, containerStyle]}>
+      <Pressable 
+        onPress={goToPreviousMonth} 
+        style={styles.button}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      >
+        <ChevronLeft size={24} color={colors.text.secondary} />
       </Pressable>
       
       <View style={styles.dateContainer}>
-        <Text style={styles.month}>{months[currentDate.getMonth()]}</Text>
-        <Text style={styles.year}>{currentDate.getFullYear()}</Text>
+        <Text style={[styles.month, { color: colors.text.primary }]}>
+          {months[currentDate.getMonth()]}
+        </Text>
+        <Text style={[styles.year, { color: colors.text.secondary }]}>
+          {currentDate.getFullYear()}
+        </Text>
       </View>
 
-      <Pressable onPress={goToNextMonth} style={styles.button}>
-        <ChevronRight size={24} color="#64748b" />
+      <Pressable 
+        onPress={goToNextMonth} 
+        style={styles.button}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      >
+        <ChevronRight size={24} color={colors.text.secondary} />
       </Pressable>
     </View>
   );
@@ -48,21 +69,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 12,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    marginHorizontal: 16,
+    marginVertical: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   button: {
     padding: 8,
   },
   dateContainer: {
     alignItems: 'center',
+    flex: 1,
   },
   month: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#1e293b',
+    textTransform: 'capitalize',
   },
   year: {
     fontSize: 14,
-    color: '#64748b',
+    marginTop: 2,
   },
 }); 

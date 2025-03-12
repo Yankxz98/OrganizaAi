@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, StyleSheet, Pressable, ScrollView, Alert } from 'react-native';
 import { Briefcase, Coins, Building2, Plus, Trash2 } from 'lucide-react-native';
-import { Income, IncomeSource } from '../utils/storage';
+import { Income, IncomeSource, StorageService } from '../utils/storage';
+import { useEvent } from '../utils/EventContext';
 
 interface IncomeFormProps {
   onSave: (income: Income) => void;
@@ -28,6 +29,8 @@ export default function IncomeForm({ onSave, onCancel, initialData, currentDate 
     description: '',
     amount: 0
   });
+  
+  const { triggerEvent } = useEvent();
 
   useEffect(() => {
     if (initialData) {
@@ -59,7 +62,7 @@ export default function IncomeForm({ onSave, onCancel, initialData, currentDate 
     });
   };
 
-  const handleAddExtra = () => {
+  const handleAddExtra = async () => {
     if (!newExtra.description || !newExtra.amount) {
       Alert.alert('Atenção', 'Por favor, preencha a descrição e o valor do extra.');
       return;
@@ -73,20 +76,21 @@ export default function IncomeForm({ onSave, onCancel, initialData, currentDate 
       m => m.month === currentMonth && m.year === currentYear
     );
 
+    let updatedFormData;
     if (currentMonthExtras) {
       currentMonthExtras.extras.push({
         id: Date.now(),
         description: newExtra.description,
         amount: Number(newExtra.amount)
       });
-      setFormData({
+      updatedFormData = {
         ...formData,
         monthlyExtras: monthlyExtras.map(m => 
           m.month === currentMonth && m.year === currentYear ? currentMonthExtras : m
         )
-      });
+      };
     } else {
-      setFormData({
+      updatedFormData = {
         ...formData,
         monthlyExtras: [
           ...monthlyExtras,
@@ -100,7 +104,35 @@ export default function IncomeForm({ onSave, onCancel, initialData, currentDate 
             }]
           }
         ]
-      });
+      };
+    }
+    
+    setFormData(updatedFormData);
+    
+    // Se estamos editando uma renda existente, salvar imediatamente e disparar evento
+    if (initialData?.id) {
+      const updatedIncome = {
+        ...updatedFormData,
+        id: initialData.id
+      } as Income;
+      
+      try {
+        // Carregar todas as rendas
+        const allIncomes = await StorageService.loadIncome();
+        // Atualizar a renda específica
+        const updatedIncomes = allIncomes.map(income => 
+          income.id === updatedIncome.id ? updatedIncome : income
+        );
+        // Salvar todas as rendas
+        await StorageService.saveIncome(updatedIncomes);
+        // Disparar evento para atualizar o dashboard
+        setTimeout(() => {
+          triggerEvent('INCOME_UPDATED');
+        }, 0);
+      } catch (error) {
+        console.error('Erro ao salvar extra:', error);
+        Alert.alert('Erro', 'Ocorreu um erro ao salvar o extra');
+      }
     }
 
     setNewExtra({
@@ -109,7 +141,7 @@ export default function IncomeForm({ onSave, onCancel, initialData, currentDate 
     });
   };
 
-  const handleDeleteExtra = (extraId: number) => {
+  const handleDeleteExtra = async (extraId: number) => {
     const currentMonth = currentDate.getMonth();
     const currentYear = currentDate.getFullYear();
     const monthlyExtras = formData.monthlyExtras || [];
@@ -120,12 +152,42 @@ export default function IncomeForm({ onSave, onCancel, initialData, currentDate 
 
     if (currentMonthExtras) {
       currentMonthExtras.extras = currentMonthExtras.extras.filter(e => e.id !== extraId);
-      setFormData({
+      const updatedMonthlyExtras = monthlyExtras.map(m => 
+        m.month === currentMonth && m.year === currentYear ? currentMonthExtras : m
+      ).filter(m => m.extras.length > 0);
+      
+      const updatedFormData = {
         ...formData,
-        monthlyExtras: monthlyExtras.map(m => 
-          m.month === currentMonth && m.year === currentYear ? currentMonthExtras : m
-        ).filter(m => m.extras.length > 0)
-      });
+        monthlyExtras: updatedMonthlyExtras
+      };
+      
+      setFormData(updatedFormData);
+      
+      // Se estamos editando uma renda existente, salvar imediatamente e disparar evento
+      if (initialData?.id) {
+        const updatedIncome = {
+          ...updatedFormData,
+          id: initialData.id
+        } as Income;
+        
+        try {
+          // Carregar todas as rendas
+          const allIncomes = await StorageService.loadIncome();
+          // Atualizar a renda específica
+          const updatedIncomes = allIncomes.map(income => 
+            income.id === updatedIncome.id ? updatedIncome : income
+          );
+          // Salvar todas as rendas
+          await StorageService.saveIncome(updatedIncomes);
+          // Disparar evento para atualizar o dashboard
+          setTimeout(() => {
+            triggerEvent('INCOME_UPDATED');
+          }, 0);
+        } catch (error) {
+          console.error('Erro ao excluir extra:', error);
+          Alert.alert('Erro', 'Ocorreu um erro ao excluir o extra');
+        }
+      }
     }
   };
 

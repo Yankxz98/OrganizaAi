@@ -1,9 +1,11 @@
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { ArrowUpRight, ArrowDownRight, Wallet } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { StorageService, MonthlyData, Income, Expense } from '../utils/storage';
 import MonthSelector from '../components/MonthSelector';
 import ExpensesDropdown from '../components/ExpensesDropdown';
+import IncomeDropdown from '../components/IncomeDropdown';
+import { useEvent } from '../utils/EventContext';
 
 export default function HomeScreen() {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -17,49 +19,118 @@ export default function HomeScreen() {
   });
   const [fixedExpenses, setFixedExpenses] = useState(0);
   const [variableExpenses, setVariableExpenses] = useState(0);
+  const [baseIncome, setBaseIncome] = useState(0);
+  const [extrasIncome, setExtrasIncome] = useState(0);
+  const { subscribeToEvent } = useEvent();
+  
+  // Usar uma ref para armazenar a data atual para evitar loops de dependência
+  const currentDateRef = useRef(currentDate);
+  currentDateRef.current = currentDate;
+  
+  // Usar uma ref para controlar se estamos no meio de uma atualização
+  const isUpdatingRef = useRef(false);
 
+  const loadData = useCallback(async () => {
+    // Evitar múltiplas atualizações simultâneas
+    if (isUpdatingRef.current) return;
+    isUpdatingRef.current = true;
+    
+    try {
+      console.log('Dashboard: Carregando dados...');
+      // Usar a ref em vez da dependência direta
+      const dateToUse = currentDateRef.current;
+      
+      // Carregar rendas do mês
+      const incomeData = await StorageService.loadIncome();
+      // Carregar despesas do mês
+      const expensesData = await StorageService.loadExpenses(dateToUse);
+      
+      // Calcular totais do mês
+      let totalBaseIncome = 0;
+      let totalExtrasIncome = 0;
+      
+      incomeData.forEach(income => {
+        // Calcular renda base (fontes fixas)
+        const baseAmount = income.sources.reduce((sum, source) => sum + source.amount, 0);
+        totalBaseIncome += baseAmount;
+        
+        // Calcular extras do mês atual
+        const currentMonth = dateToUse.getMonth();
+        const currentYear = dateToUse.getFullYear();
+        const monthlyExtras = income.monthlyExtras?.find(
+          m => m.month === currentMonth && m.year === currentYear
+        );
+        
+        if (monthlyExtras) {
+          const extrasAmount = monthlyExtras.extras.reduce((sum, extra) => sum + extra.amount, 0);
+          totalExtrasIncome += extrasAmount;
+        }
+      });
+      
+      const totalIncome = totalBaseIncome + totalExtrasIncome;
+      
+      // Separar despesas fixas e variáveis
+      const fixed = expensesData
+        .filter(expense => expense.type === 'fixed')
+        .reduce((total, expense) => total + expense.amount, 0);
+      
+      const variable = expensesData
+        .filter(expense => expense.type === 'variable')
+        .reduce((total, expense) => total + expense.amount, 0);
+
+      const totalExpenses = fixed + variable;
+      
+      // Calcular poupança (renda - despesas)
+      const savings = totalIncome - totalExpenses;
+
+      setFixedExpenses(fixed);
+      setVariableExpenses(variable);
+      setBaseIncome(totalBaseIncome);
+      setExtrasIncome(totalExtrasIncome);
+
+      const newMonthlyData: MonthlyData = {
+        totalIncome,
+        income: totalIncome,
+        totalExpenses,
+        expenses: totalExpenses,
+        savings,
+        investments: 0
+      };
+
+      setMonthlyData(newMonthlyData);
+    } catch (error) {
+      console.error('Erro ao carregar dados do dashboard:', error);
+    } finally {
+      isUpdatingRef.current = false;
+    }
+  }, []); // Remover a dependência de currentDate
+
+  // Efeito para carregar dados quando a data mudar
   useEffect(() => {
     loadData();
-  }, [currentDate]);
+  }, [currentDate]); // Manter currentDate aqui para recarregar quando a data mudar
 
-  const loadData = async () => {
-    // Carregar rendas do mês
-    const incomeData = await StorageService.loadIncome();
-    // Carregar despesas do mês
-    const expensesData = await StorageService.loadExpenses(currentDate);
-    
-    // Calcular totais do mês
-    const totalIncome = incomeData.reduce((total, income) => 
-      total + income.sources.reduce((sum, source) => sum + source.amount, 0), 0);
-    
-    // Separar despesas fixas e variáveis
-    const fixed = expensesData
-      .filter(expense => expense.type === 'fixed')
-      .reduce((total, expense) => total + expense.amount, 0);
-    
-    const variable = expensesData
-      .filter(expense => expense.type === 'variable')
-      .reduce((total, expense) => total + expense.amount, 0);
-
-    const totalExpenses = fixed + variable;
-    
-    // Calcular poupança (renda - despesas)
-    const savings = totalIncome - totalExpenses;
-
-    setFixedExpenses(fixed);
-    setVariableExpenses(variable);
-
-    const newMonthlyData: MonthlyData = {
-      totalIncome,
-      income: totalIncome,
-      totalExpenses,
-      expenses: totalExpenses,
-      savings,
-      investments: 0
+  // Efeito separado para inscrever nos eventos
+  useEffect(() => {
+    // Inscrever-se para eventos de atualização de despesas e rendas
+    const handleUpdate = () => {
+      // Usar setTimeout para evitar loops de atualização
+      setTimeout(() => {
+        if (!isUpdatingRef.current) {
+          loadData();
+        }
+      }, 100);
     };
-
-    setMonthlyData(newMonthlyData);
-  };
+    
+    const unsubscribeExpense = subscribeToEvent('EXPENSE_UPDATED', handleUpdate);
+    const unsubscribeIncome = subscribeToEvent('INCOME_UPDATED', handleUpdate);
+    
+    // Limpar inscrições quando o componente for desmontado
+    return () => {
+      unsubscribeExpense();
+      unsubscribeIncome();
+    };
+  }, [subscribeToEvent, loadData]);
 
   const handleMonthChange = (date: Date) => {
     setCurrentDate(date);
@@ -72,6 +143,10 @@ export default function HomeScreen() {
 
   return (
     <ScrollView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Dashboard</Text>
+      </View>
+
       <View style={styles.monthSelectorContainer}>
         <MonthSelector currentDate={currentDate} onMonthChange={handleMonthChange} />
       </View>
@@ -82,24 +157,11 @@ export default function HomeScreen() {
           <Text style={styles.balance}>R$ {monthlyData.totalIncome - monthlyData.totalExpenses}</Text>
         </View>
 
-        <View style={styles.summaryCard}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Renda Total</Text>
-            <ArrowUpRight color="#22c55e" size={20} />
-          </View>
-          <Text style={styles.cardValue}>R$ {monthlyData.totalIncome}</Text>
-          <View style={styles.progressBar}>
-            <View 
-              style={[
-                styles.progressFill, 
-                { 
-                  width: '100%',
-                  backgroundColor: '#22c55e'
-                }
-              ]} 
-            />
-          </View>
-        </View>
+        <IncomeDropdown
+          totalIncome={monthlyData.totalIncome}
+          baseIncome={baseIncome}
+          extrasIncome={extrasIncome}
+        />
 
         <ExpensesDropdown
           totalExpenses={monthlyData.totalExpenses}
@@ -154,13 +216,23 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#fff',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e5e5',
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#0f172a',
   },
   monthSelectorContainer: {
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-    paddingVertical: 8,
+    marginVertical: 8,
   },
   balanceCard: {
     backgroundColor: '#ffffff',
