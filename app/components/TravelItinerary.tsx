@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, TextInput, Alert, ScrollView, Modal } from 'react-native';
+import { View, Text, StyleSheet, Pressable, TextInput, Alert, ScrollView, Modal, Platform, StatusBar } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Plus, MapPin, Clock, Calendar, Edit2, Trash2, Check } from 'lucide-react-native';
 import { Travel, TravelActivity, StorageService } from '../utils/storage';
 import { useEvent } from '../utils/EventContext';
@@ -38,7 +39,14 @@ export default function TravelItinerary({ travel, onUpdate, colors }: TravelItin
     const start = new Date(travel.startDate);
     const end = new Date(travel.endDate);
     
-    for (let dt = new Date(start); dt <= end; dt.setDate(dt.getDate() + 1)) {
+    // Ajustar para o início do dia no fuso horário local e adicionar um dia para compensar o offset
+    const startLocal = new Date(start);
+    startLocal.setHours(0, 0, 0, 0);
+    
+    const endLocal = new Date(end);
+    endLocal.setHours(23, 59, 59, 999);
+    
+    for (let dt = new Date(startLocal); dt <= endLocal; dt.setDate(dt.getDate() + 1)) {
       days.push(new Date(dt));
     }
     return days;
@@ -50,12 +58,22 @@ export default function TravelItinerary({ travel, onUpdate, colors }: TravelItin
   const getActivitiesForDay = (day: Date) => {
     if (!travel.itinerary) return [];
     
-    const dayStr = day.toISOString().split('T')[0];
+    // Formatar a data do dia para comparação (YYYY-MM-DD)
+    const dayStr = `${day.getFullYear()}-${(day.getMonth() + 1).toString().padStart(2, '0')}-${day.getDate().toString().padStart(2, '0')}`;
+    
     return travel.itinerary.filter(activity => {
-      const activityDate = new Date(activity.startDateTime).toISOString().split('T')[0];
-      return activityDate === dayStr;
+      // Extrair a data da string ISO diretamente (YYYY-MM-DD)
+      const activityDateStr = activity.startDateTime.split('T')[0];
+      
+      // Comparar as strings de data
+      return activityDateStr === dayStr;
     }).sort((a, b) => {
-      return new Date(a.startDateTime).getTime() - new Date(b.startDateTime).getTime();
+      // Extrair as horas e minutos para ordenação
+      const timeA = a.startDateTime.split('T')[1].substring(0, 5); // HH:MM
+      const timeB = b.startDateTime.split('T')[1].substring(0, 5); // HH:MM
+      
+      // Comparar as strings de hora
+      return timeA.localeCompare(timeB);
     });
   };
 
@@ -67,30 +85,33 @@ export default function TravelItinerary({ travel, onUpdate, colors }: TravelItin
       return;
     }
 
-    // Criar data e hora completa
+    // Extrair as horas e minutos
     const [hours, minutes] = (newActivity.startTime || '08:00').split(':');
-    const startDate = new Date(selectedDay);
-    startDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+    
+    // Criar a string ISO diretamente
+    // Formato: YYYY-MM-DDTHH:MM:00.000Z
+    const startDateTime = `${selectedDay}T${hours}:${minutes}:00.000Z`;
 
-    let endDate = null;
+    // Fazer o mesmo para a hora de término, se existir
+    let endDateTime;
     if (newActivity.endTime) {
       const [endHours, endMinutes] = newActivity.endTime.split(':');
-      endDate = new Date(selectedDay);
-      endDate.setHours(parseInt(endHours), parseInt(endMinutes), 0, 0);
+      endDateTime = `${selectedDay}T${endHours}:${endMinutes}:00.000Z`;
     }
 
     const activity: TravelActivity = {
       id: editingActivity?.id || Date.now(),
       title: newActivity.title || '',
       category: newActivity.category || 'passeio',
-      startDateTime: startDate.toISOString(),
-      endDateTime: endDate ? endDate.toISOString() : undefined,
+      startDateTime: startDateTime,
+      endDateTime: endDateTime,
       location: newActivity.location || '',
       notes: newActivity.notes,
       estimatedCost: Number(newActivity.estimatedCost) || 0,
       completed: editingActivity?.completed || false
     };
 
+    // Garantir que o itinerário seja inicializado mesmo quando não existe
     let updatedItinerary = [...(travel.itinerary || [])];
     
     if (editingActivity) {
@@ -160,13 +181,18 @@ export default function TravelItinerary({ travel, onUpdate, colors }: TravelItin
   };
 
   const handleEditActivity = (activity: TravelActivity) => {
-    const startDate = new Date(activity.startDateTime);
-    const startTime = `${startDate.getHours().toString().padStart(2, '0')}:${startDate.getMinutes().toString().padStart(2, '0')}`;
+    // Extrair as horas e minutos da string ISO diretamente
+    const startTimeString = activity.startDateTime.split('T')[1]; // Pega a parte após o T
+    const startHours = startTimeString.substring(0, 2);
+    const startMinutes = startTimeString.substring(3, 5);
+    const startTime = `${startHours}:${startMinutes}`;
     
     let endTime = '';
     if (activity.endDateTime) {
-      const endDate = new Date(activity.endDateTime);
-      endTime = `${endDate.getHours().toString().padStart(2, '0')}:${endDate.getMinutes().toString().padStart(2, '0')}`;
+      const endTimeString = activity.endDateTime.split('T')[1];
+      const endHours = endTimeString.substring(0, 2);
+      const endMinutes = endTimeString.substring(3, 5);
+      endTime = `${endHours}:${endMinutes}`;
     }
     
     setEditingActivity(activity);
@@ -180,9 +206,9 @@ export default function TravelItinerary({ travel, onUpdate, colors }: TravelItin
       estimatedCost: activity.estimatedCost || 0
     });
     
-    // Selecionar o dia da atividade
-    const activityDate = new Date(activity.startDateTime);
-    setSelectedDay(activityDate.toISOString().split('T')[0]);
+    // Extrair a data da string ISO (YYYY-MM-DD)
+    const datePart = activity.startDateTime.split('T')[0];
+    setSelectedDay(datePart);
     
     setShowAddModal(true);
   };
@@ -190,6 +216,7 @@ export default function TravelItinerary({ travel, onUpdate, colors }: TravelItin
   const saveTravel = async (updatedTravel: Travel) => {
     try {
       const travels = await StorageService.loadTravels();
+      
       const updatedTravels = travels.map(t => 
         t.id === updatedTravel.id ? updatedTravel : t
       );
@@ -197,7 +224,6 @@ export default function TravelItinerary({ travel, onUpdate, colors }: TravelItin
       await StorageService.saveTravels(updatedTravels);
       onUpdate(updatedTravel);
       
-      // Disparar evento para notificar que uma viagem foi atualizada
       setTimeout(() => {
         triggerEvent('TRAVEL_UPDATED');
       }, 300);
@@ -251,31 +277,47 @@ export default function TravelItinerary({ travel, onUpdate, colors }: TravelItin
   };
 
   const formatTime = (dateString: string) => {
+    // Converter a string ISO para um objeto Date
     const date = new Date(dateString);
-    return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+    
+    // Extrair as horas e minutos da string ISO diretamente
+    // O formato ISO é: YYYY-MM-DDTHH:MM:SS.sssZ
+    // Onde T é um separador e Z indica UTC
+    const timeString = dateString.split('T')[1]; // Pega a parte após o T
+    const hours = timeString.substring(0, 2);
+    const minutes = timeString.substring(3, 5);
+    
+    return `${hours}:${minutes}`;
   };
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={[styles.title, { color: colors.text.primary }]}>Itinerário da Viagem</Text>
-        <Pressable 
-          style={[styles.addButton, { backgroundColor: colors.primary }]}
-          onPress={() => {
-            setSelectedDay(days[0].toISOString().split('T')[0]);
-            setShowAddModal(true);
-          }}
-        >
-          <Plus size={20} color="#fff" />
-        </Pressable>
       </View>
 
       <ScrollView style={styles.daysContainer}>
         {days.map((day, index) => (
           <View key={index} style={styles.daySection}>
-            <Text style={[styles.dayTitle, { color: colors.text.primary }]}>
-              {formatDate(day)}
-            </Text>
+            <View style={styles.dayHeader}>
+              <Text style={[styles.dayTitle, { color: colors.text.primary }]}>
+                {formatDate(day)}
+              </Text>
+              <Pressable 
+                style={[styles.addDayButton, { backgroundColor: colors.primary }]}
+                onPress={() => {
+                  // Formatar a data manualmente para evitar problemas de fuso horário
+                  const year = day.getFullYear();
+                  const month = (day.getMonth() + 1).toString().padStart(2, '0');
+                  const dayOfMonth = day.getDate().toString().padStart(2, '0');
+                  setSelectedDay(`${year}-${month}-${dayOfMonth}`);
+                  setShowAddModal(true);
+                }}
+              >
+                <Plus size={16} color="#fff" />
+                <Text style={styles.addDayButtonText}>Adicionar</Text>
+              </Pressable>
+            </View>
             
             {getActivitiesForDay(day).length > 0 ? (
               getActivitiesForDay(day).map(activity => (
@@ -365,16 +407,6 @@ export default function TravelItinerary({ travel, onUpdate, colors }: TravelItin
                 <Text style={[styles.emptyText, { color: colors.text.secondary }]}>
                   Nenhuma atividade planejada para este dia
                 </Text>
-                <Pressable 
-                  style={[styles.addDayButton, { backgroundColor: colors.primary }]}
-                  onPress={() => {
-                    setSelectedDay(day.toISOString().split('T')[0]);
-                    setShowAddModal(true);
-                  }}
-                >
-                  <Plus size={16} color="#fff" />
-                  <Text style={styles.addDayButtonText}>Adicionar</Text>
-                </Pressable>
               </View>
             )}
           </View>
@@ -393,113 +425,123 @@ export default function TravelItinerary({ travel, onUpdate, colors }: TravelItin
               {editingActivity ? 'Editar Atividade' : 'Nova Atividade'}
             </Text>
             
-            <View style={styles.formGroup}>
-              <Text style={[styles.label, { color: colors.text.secondary }]}>Dia</Text>
-              <View style={[styles.pickerContainer, { backgroundColor: colors.card }]}>
-                <Calendar size={16} color={colors.text.secondary} style={styles.pickerIcon} />
-                <Pressable style={styles.picker}>
-                  <Text style={[styles.pickerText, { color: colors.text.primary }]}>
-                    {selectedDay ? new Date(selectedDay).toLocaleDateString('pt-BR') : 'Selecione um dia'}
-                  </Text>
-                </Pressable>
-              </View>
-            </View>
-            
-            <View style={styles.formGroup}>
-              <Text style={[styles.label, { color: colors.text.secondary }]}>Título</Text>
-              <TextInput
-                style={[styles.input, { color: colors.text.primary, backgroundColor: colors.card }]}
-                value={newActivity.title}
-                onChangeText={title => setNewActivity(prev => ({ ...prev, title }))}
-                placeholder="Título da atividade"
-                placeholderTextColor={colors.text.secondary}
-              />
-            </View>
-            
-            <View style={styles.formGroup}>
-              <Text style={[styles.label, { color: colors.text.secondary }]}>Categoria</Text>
-              <View style={[styles.categoryContainer, { backgroundColor: colors.card }]}>
-                {['passeio', 'refeicao', 'transporte', 'hospedagem', 'outro'].map(category => (
-                  <Pressable
-                    key={category}
-                    style={[
-                      styles.categoryButton,
-                      newActivity.category === category && { 
-                        backgroundColor: getCategoryColor(category) 
-                      }
-                    ]}
-                    onPress={() => setNewActivity(prev => ({ ...prev, category: category as any }))}
-                  >
-                    <Text style={[
-                      styles.categoryText,
-                      newActivity.category === category && { color: '#fff' }
-                    ]}>
-                      {getCategoryLabel(category)}
+            <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
+              <View style={styles.formGroup}>
+                <Text style={[styles.label, { color: colors.text.secondary }]}>Dia</Text>
+                <View style={[styles.pickerContainer, { backgroundColor: colors.card }]}>
+                  <Calendar size={16} color={colors.text.secondary} style={styles.pickerIcon} />
+                  <Pressable style={styles.picker}>
+                    <Text style={[styles.pickerText, { color: colors.text.primary }]}>
+                      {selectedDay ? (() => {
+                        const parts = selectedDay.split('-');
+                        const formattedDate = new Date(
+                          parseInt(parts[0]),
+                          parseInt(parts[1]) - 1,
+                          parseInt(parts[2])
+                        );
+                        return formattedDate.toLocaleDateString('pt-BR');
+                      })() : 'Selecione um dia'}
                     </Text>
                   </Pressable>
-                ))}
+                </View>
               </View>
-            </View>
-            
-            <View style={styles.timeContainer}>
-              <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
-                <Text style={[styles.label, { color: colors.text.secondary }]}>Hora Início</Text>
+              
+              <View style={styles.formGroup}>
+                <Text style={[styles.label, { color: colors.text.secondary }]}>Título</Text>
                 <TextInput
                   style={[styles.input, { color: colors.text.primary, backgroundColor: colors.card }]}
-                  value={newActivity.startTime}
-                  onChangeText={startTime => setNewActivity(prev => ({ ...prev, startTime }))}
-                  placeholder="08:00"
+                  value={newActivity.title}
+                  onChangeText={title => setNewActivity(prev => ({ ...prev, title }))}
+                  placeholder="Título da atividade"
                   placeholderTextColor={colors.text.secondary}
                 />
               </View>
               
-              <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
-                <Text style={[styles.label, { color: colors.text.secondary }]}>Hora Fim</Text>
+              <View style={styles.formGroup}>
+                <Text style={[styles.label, { color: colors.text.secondary }]}>Categoria</Text>
+                <View style={[styles.categoryContainer, { backgroundColor: colors.card }]}>
+                  {['passeio', 'refeicao', 'transporte', 'hospedagem', 'outro'].map(category => (
+                    <Pressable
+                      key={category}
+                      style={[
+                        styles.categoryButton,
+                        newActivity.category === category && { 
+                          backgroundColor: getCategoryColor(category) 
+                        }
+                      ]}
+                      onPress={() => setNewActivity(prev => ({ ...prev, category: category as any }))}
+                    >
+                      <Text style={[
+                        styles.categoryText,
+                        newActivity.category === category && { color: '#fff' }
+                      ]}>
+                        {getCategoryLabel(category)}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+              
+              <View style={styles.timeContainer}>
+                <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
+                  <Text style={[styles.label, { color: colors.text.secondary }]}>Hora Início</Text>
+                  <TextInput
+                    style={[styles.input, { color: colors.text.primary, backgroundColor: colors.card }]}
+                    value={newActivity.startTime}
+                    onChangeText={startTime => setNewActivity(prev => ({ ...prev, startTime }))}
+                    placeholder="08:00"
+                    placeholderTextColor={colors.text.secondary}
+                  />
+                </View>
+                
+                <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
+                  <Text style={[styles.label, { color: colors.text.secondary }]}>Hora Fim</Text>
+                  <TextInput
+                    style={[styles.input, { color: colors.text.primary, backgroundColor: colors.card }]}
+                    value={newActivity.endTime}
+                    onChangeText={endTime => setNewActivity(prev => ({ ...prev, endTime }))}
+                    placeholder="10:00"
+                    placeholderTextColor={colors.text.secondary}
+                  />
+                </View>
+              </View>
+              
+              <View style={styles.formGroup}>
+                <Text style={[styles.label, { color: colors.text.secondary }]}>Local</Text>
                 <TextInput
                   style={[styles.input, { color: colors.text.primary, backgroundColor: colors.card }]}
-                  value={newActivity.endTime}
-                  onChangeText={endTime => setNewActivity(prev => ({ ...prev, endTime }))}
-                  placeholder="10:00"
+                  value={newActivity.location}
+                  onChangeText={location => setNewActivity(prev => ({ ...prev, location }))}
+                  placeholder="Local da atividade"
                   placeholderTextColor={colors.text.secondary}
                 />
               </View>
-            </View>
-            
-            <View style={styles.formGroup}>
-              <Text style={[styles.label, { color: colors.text.secondary }]}>Local</Text>
-              <TextInput
-                style={[styles.input, { color: colors.text.primary, backgroundColor: colors.card }]}
-                value={newActivity.location}
-                onChangeText={location => setNewActivity(prev => ({ ...prev, location }))}
-                placeholder="Local da atividade"
-                placeholderTextColor={colors.text.secondary}
-              />
-            </View>
-            
-            <View style={styles.formGroup}>
-              <Text style={[styles.label, { color: colors.text.secondary }]}>Custo Estimado (R$)</Text>
-              <TextInput
-                style={[styles.input, { color: colors.text.primary, backgroundColor: colors.card }]}
-                value={newActivity.estimatedCost?.toString()}
-                onChangeText={cost => setNewActivity(prev => ({ ...prev, estimatedCost: Number(cost) || 0 }))}
-                keyboardType="numeric"
-                placeholder="0.00"
-                placeholderTextColor={colors.text.secondary}
-              />
-            </View>
-            
-            <View style={styles.formGroup}>
-              <Text style={[styles.label, { color: colors.text.secondary }]}>Notas</Text>
-              <TextInput
-                style={[styles.textArea, { color: colors.text.primary, backgroundColor: colors.card }]}
-                value={newActivity.notes}
-                onChangeText={notes => setNewActivity(prev => ({ ...prev, notes }))}
-                placeholder="Observações adicionais"
-                placeholderTextColor={colors.text.secondary}
-                multiline
-                numberOfLines={3}
-              />
-            </View>
+              
+              <View style={styles.formGroup}>
+                <Text style={[styles.label, { color: colors.text.secondary }]}>Custo Estimado (R$)</Text>
+                <TextInput
+                  style={[styles.input, { color: colors.text.primary, backgroundColor: colors.card }]}
+                  value={newActivity.estimatedCost?.toString()}
+                  onChangeText={cost => setNewActivity(prev => ({ ...prev, estimatedCost: Number(cost) || 0 }))}
+                  keyboardType="numeric"
+                  placeholder="0.00"
+                  placeholderTextColor={colors.text.secondary}
+                />
+              </View>
+              
+              <View style={styles.formGroup}>
+                <Text style={[styles.label, { color: colors.text.secondary }]}>Notas</Text>
+                <TextInput
+                  style={[styles.textArea, { color: colors.text.primary, backgroundColor: colors.card }]}
+                  value={newActivity.notes}
+                  onChangeText={notes => setNewActivity(prev => ({ ...prev, notes }))}
+                  placeholder="Observações adicionais"
+                  placeholderTextColor={colors.text.secondary}
+                  multiline
+                  numberOfLines={3}
+                />
+              </View>
+            </ScrollView>
             
             <View style={styles.modalButtons}>
               <Pressable 
@@ -528,22 +570,22 @@ export default function TravelItinerary({ travel, onUpdate, colors }: TravelItin
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
+    padding: 12,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   title: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
   },
   addButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -551,29 +593,35 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   daySection: {
-    marginBottom: 20,
+    marginBottom: 16,
+  },
+  dayHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
   },
   dayTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
-    marginBottom: 8,
     textTransform: 'capitalize',
+    flex: 1,
   },
   activityCard: {
     flexDirection: 'row',
     borderRadius: 8,
-    marginBottom: 8,
+    marginBottom: 6,
     borderLeftWidth: 4,
     overflow: 'hidden',
   },
   completeButton: {
-    padding: 12,
+    padding: 10,
     justifyContent: 'center',
     alignItems: 'center',
   },
   checkbox: {
-    width: 20,
-    height: 20,
+    width: 18,
+    height: 18,
     borderRadius: 4,
     borderWidth: 2,
     borderColor: '#d1d5db',
@@ -582,16 +630,16 @@ const styles = StyleSheet.create({
   },
   activityContent: {
     flex: 1,
-    padding: 12,
+    padding: 10,
   },
   activityHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   activityTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     flex: 1,
   },
@@ -600,10 +648,10 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     padding: 4,
-    marginLeft: 8,
+    marginLeft: 6,
   },
   activityDetails: {
-    gap: 4,
+    gap: 3,
   },
   detailItem: {
     flexDirection: 'row',
@@ -613,72 +661,77 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   detailText: {
-    fontSize: 14,
+    fontSize: 12,
   },
   costText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
-    marginTop: 4,
+    marginTop: 3,
   },
   notesText: {
-    fontSize: 14,
-    marginTop: 4,
+    fontSize: 12,
+    marginTop: 3,
     fontStyle: 'italic',
   },
   emptyDay: {
-    padding: 16,
+    padding: 12,
     borderRadius: 8,
     alignItems: 'center',
   },
   emptyText: {
-    fontSize: 14,
-    marginBottom: 8,
+    fontSize: 12,
+    marginBottom: 6,
   },
   addDayButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 4,
   },
   addDayButtonText: {
     color: '#fff',
     marginLeft: 4,
-    fontSize: 14,
+    fontSize: 11,
   },
   modalContainer: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContent: {
+    width: '100%',
+    maxHeight: '80%',
+    backgroundColor: '#fff',
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
-    padding: 20,
-    maxHeight: '90%',
+    padding: 16,
+    paddingBottom: 8,
+    display: 'flex',
+    flexDirection: 'column',
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 16,
+    marginBottom: 12,
     textAlign: 'center',
   },
   formGroup: {
-    marginBottom: 16,
+    marginBottom: 12,
   },
   label: {
-    fontSize: 14,
-    marginBottom: 8,
+    fontSize: 12,
+    marginBottom: 4,
   },
   input: {
     borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
+    padding: 10,
+    fontSize: 14,
   },
   textArea: {
     borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
+    padding: 10,
+    fontSize: 14,
     textAlignVertical: 'top',
   },
   timeContainer: {
@@ -688,54 +741,61 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: 8,
-    padding: 12,
+    padding: 10,
   },
   pickerIcon: {
-    marginRight: 8,
+    marginRight: 6,
   },
   picker: {
     flex: 1,
   },
   pickerText: {
-    fontSize: 16,
+    fontSize: 14,
   },
   categoryContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     borderRadius: 8,
-    padding: 8,
-    gap: 8,
+    padding: 6,
+    gap: 6,
   },
   categoryButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 4,
     borderWidth: 1,
     borderColor: '#d1d5db',
   },
   categoryText: {
-    fontSize: 12,
+    fontSize: 11,
   },
   modalButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 16,
+    marginTop: 12,
   },
   modalButton: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 10,
     borderRadius: 8,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
   },
   cancelButton: {
-    marginRight: 8,
+    marginRight: 6,
     borderWidth: 1,
   },
   saveButton: {
-    marginLeft: 8,
+    marginLeft: 6,
   },
   saveButtonText: {
     color: '#fff',
     fontWeight: '600',
+  },
+  modalScroll: {
+    flexGrow: 1,
+    width: '100%',
+    marginBottom: 8,
   },
 }); 

@@ -24,7 +24,8 @@ export default function TravelForm() {
       planned: [],
       discretionary: 0
     },
-    expenses: []
+    expenses: [],
+    itinerary: []
   });
 
   const [showStartDate, setShowStartDate] = useState(false);
