@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert, Platform, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert, Platform, StatusBar, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme/ThemeContext';
 import { Travel, TravelExpense, StorageService } from '../../utils/storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Plus, Edit2, ArrowLeft, Calendar, MapPin } from 'lucide-react-native';
+import { Plus, Edit2, ArrowLeft, Calendar, MapPin, DollarSign, Wallet, Briefcase, CreditCard, TrendingDown, TrendingUp } from 'lucide-react-native';
 import TravelItinerary from '../../components/TravelItinerary';
 import { useEvent } from '../../utils/EventContext';
 
@@ -46,6 +46,18 @@ export default function TravelDetails() {
   });
   const [activeTab, setActiveTab] = useState<'expenses' | 'itinerary'>('expenses');
   const [expenseType, setExpenseType] = useState<'real' | 'planned'>('real');
+  const [isFinancialReportOpen, setIsFinancialReportOpen] = useState(false);
+  
+  // Animação para o dropdown
+  const animatedHeight = useRef(new Animated.Value(0)).current;
+  
+  useEffect(() => {
+    Animated.timing(animatedHeight, {
+      toValue: isFinancialReportOpen ? 1 : 0,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+  }, [isFinancialReportOpen]);
 
   // Função para atualizar a viagem com debounce
   const debounceUpdateTravel = useDebounce(async () => {
@@ -260,62 +272,6 @@ export default function TravelDetails() {
         </View>
 
         <View style={[styles.contentContainer, { backgroundColor: colors.background, borderTopLeftRadius: 16, borderTopRightRadius: 16, marginTop: -8 }]}>
-          <View style={[styles.budgetCard, { backgroundColor: colors.card }]}>
-            <View style={styles.budgetItem}>
-              <Text style={[styles.budgetLabel, { color: colors.text.secondary }]}>Orçamento Total</Text>
-              <Text style={[styles.budgetValue, { color: colors.text.primary }]}>
-                R$ {travel.budget.total.toFixed(2)}
-              </Text>
-            </View>
-
-            <View style={styles.budgetDivider} />
-
-            <View style={styles.budgetItem}>
-              <Text style={[styles.budgetLabel, { color: colors.text.secondary }]}>Custos do Itinerário</Text>
-              <Text style={[styles.budgetValue, { color: colors.text.primary }]}>
-                R$ {calculateItineraryCosts().toFixed(2)}
-              </Text>
-            </View>
-
-            <View style={styles.budgetItem}>
-              <Text style={[styles.budgetLabel, { color: colors.text.secondary }]}>Despesas Planejadas</Text>
-              <Text style={[styles.budgetValue, { color: colors.text.primary }]}>
-                R$ {calculatePlannedExpenses().toFixed(2)}
-              </Text>
-            </View>
-
-            <View style={styles.budgetDivider} />
-
-            <View style={styles.budgetItem}>
-              <Text style={[styles.budgetLabel, { color: colors.text.secondary }]}>Total Planejado</Text>
-              <Text style={[styles.budgetValue, { color: colors.text.primary }]}>
-                R$ {calculateTotalEstimatedCosts().toFixed(2)}
-              </Text>
-            </View>
-
-            <View style={styles.budgetDivider} />
-
-            <View style={styles.budgetItem}>
-              <Text style={[styles.budgetLabel, { color: colors.text.secondary }]}>Saldo Restante</Text>
-              <Text style={[styles.budgetValue, { 
-                color: calculateRemainingBudget() >= 0 ? colors.success : colors.danger 
-              }]}>
-                R$ {calculateRemainingBudget().toFixed(2)}
-              </Text>
-            </View>
-          </View>
-
-          <View style={[styles.budgetCard, { backgroundColor: colors.card, marginTop: 4, marginBottom: 4 }]}>
-            <View style={styles.budgetItemFull}>
-              <Text style={[styles.budgetLabel, { color: colors.text.secondary }]}>Livre para Gastar</Text>
-              <Text style={[styles.budgetValue, { 
-                color: calculateDiscretionaryRemaining() >= 0 ? colors.success : colors.danger 
-              }]}>
-                R$ {calculateDiscretionaryRemaining().toFixed(2)}
-              </Text>
-            </View>
-          </View>
-
           <View style={styles.tabsContainer}>
             <Pressable 
               style={[
@@ -346,6 +302,125 @@ export default function TravelDetails() {
               </Text>
             </Pressable>
           </View>
+
+          <Pressable 
+            style={[
+              styles.financialReportButton, 
+              { 
+                backgroundColor: colors.card,
+                borderBottomLeftRadius: isFinancialReportOpen ? 0 : 8,
+                borderBottomRightRadius: isFinancialReportOpen ? 0 : 8,
+                borderBottomWidth: isFinancialReportOpen ? 0 : 1,
+                borderBottomColor: isFinancialReportOpen ? 'transparent' : '#e0e0e0',
+              }
+            ]} 
+            onPress={() => setIsFinancialReportOpen(!isFinancialReportOpen)}
+          >
+            <View style={styles.financialReportTitleContainer}>
+              <DollarSign size={16} color={colors.primary} style={{ marginRight: 6 }} />
+              <Text style={[styles.financialReportButtonText, { color: colors.text.primary }]}>
+                Relatório Financeiro
+              </Text>
+            </View>
+            <Text style={[styles.financialReportButtonText, { color: colors.primary }]}>
+              {isFinancialReportOpen ? '▲' : '▼'}
+            </Text>
+          </Pressable>
+
+          <Animated.View 
+            style={[
+              styles.financialReportContainer, 
+              { 
+                backgroundColor: colors.card,
+                maxHeight: animatedHeight.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 500]
+                }),
+                opacity: animatedHeight,
+                overflow: 'hidden',
+                borderWidth: animatedHeight.interpolate({
+                  inputRange: [0, 0.01, 1],
+                  outputRange: [0, 1, 1]
+                }),
+                borderColor: '#e0e0e0',
+                borderTopWidth: 0,
+              }
+            ]}
+          >
+            <View style={styles.budgetItem}>
+              <View style={styles.budgetLabelContainer}>
+                <Wallet size={14} color={colors.text.secondary} style={{ marginRight: 4 }} />
+                <Text style={[styles.budgetLabel, { color: colors.text.secondary }]}>Orçamento Total</Text>
+              </View>
+              <Text style={[styles.budgetValue, { color: colors.text.primary }]}>
+                R$ {travel.budget.total.toFixed(2)}
+              </Text>
+            </View>
+
+            <View style={styles.budgetDivider} />
+
+            <View style={styles.budgetItem}>
+              <View style={styles.budgetLabelContainer}>
+                <Briefcase size={14} color={colors.text.secondary} style={{ marginRight: 4 }} />
+                <Text style={[styles.budgetLabel, { color: colors.text.secondary }]}>Custos do Itinerário</Text>
+              </View>
+              <Text style={[styles.budgetValue, { color: colors.text.primary }]}>
+                R$ {calculateItineraryCosts().toFixed(2)}
+              </Text>
+            </View>
+
+            <View style={styles.budgetItem}>
+              <View style={styles.budgetLabelContainer}>
+                <CreditCard size={14} color={colors.text.secondary} style={{ marginRight: 4 }} />
+                <Text style={[styles.budgetLabel, { color: colors.text.secondary }]}>Despesas Planejadas</Text>
+              </View>
+              <Text style={[styles.budgetValue, { color: colors.text.primary }]}>
+                R$ {calculatePlannedExpenses().toFixed(2)}
+              </Text>
+            </View>
+
+            <View style={styles.budgetDivider} />
+
+            <View style={styles.budgetItem}>
+              <View style={styles.budgetLabelContainer}>
+                <DollarSign size={14} color={colors.text.secondary} style={{ marginRight: 4 }} />
+                <Text style={[styles.budgetLabel, { color: colors.text.secondary }]}>Total Planejado</Text>
+              </View>
+              <Text style={[styles.budgetValue, { color: colors.text.primary }]}>
+                R$ {calculateTotalEstimatedCosts().toFixed(2)}
+              </Text>
+            </View>
+
+            <View style={styles.budgetDivider} />
+
+            <View style={styles.budgetItem}>
+              <View style={styles.budgetLabelContainer}>
+                <TrendingDown size={14} color={calculateRemainingBudget() >= 0 ? colors.success : colors.danger} style={{ marginRight: 4 }} />
+                <Text style={[styles.budgetLabel, { color: colors.text.secondary }]}>Saldo Restante</Text>
+              </View>
+              <Text style={[styles.budgetValue, { 
+                color: calculateRemainingBudget() >= 0 ? colors.success : colors.danger 
+              }]}>
+                R$ {calculateRemainingBudget().toFixed(2)}
+              </Text>
+            </View>
+
+            <View style={styles.budgetDivider} />
+
+            <View style={styles.budgetItem}>
+              <View style={styles.budgetLabelContainer}>
+                <TrendingUp size={14} color={calculateDiscretionaryRemaining() >= 0 ? colors.success : colors.danger} style={{ marginRight: 4 }} />
+                <Text style={[styles.budgetLabel, { color: colors.text.secondary }]}>Livre para Gastar</Text>
+              </View>
+              <Text style={[styles.budgetValue, { 
+                color: calculateDiscretionaryRemaining() >= 0 ? colors.success : colors.danger 
+              }]}>
+                R$ {calculateDiscretionaryRemaining().toFixed(2)}
+              </Text>
+            </View>
+          </Animated.View>
+
+          <View style={{ height: 8 }} />
 
           {activeTab === 'expenses' ? (
             <ScrollView style={styles.content}>
@@ -644,5 +719,37 @@ const styles = StyleSheet.create({
   expenseTypeText: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  financialReportButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 8,
+    marginHorizontal: 12,
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  financialReportButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  financialReportContainer: {
+    padding: 12,
+    borderRadius: 8,
+    marginHorizontal: 12,
+    marginBottom: 8,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+  },
+  financialReportTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  budgetLabelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
 }); 
