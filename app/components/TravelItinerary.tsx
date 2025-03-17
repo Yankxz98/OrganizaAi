@@ -114,7 +114,14 @@ export default function TravelItinerary({ travel, onUpdate, colors }: TravelItin
     // Garantir que o itinerário seja inicializado mesmo quando não existe
     let updatedItinerary = [...(travel.itinerary || [])];
     
+    // Calcular a diferença de custo para atualizar o valor disponível
+    let costDifference = Number(newActivity.estimatedCost) || 0;
+    
     if (editingActivity) {
+      // Se estiver editando, calcular a diferença entre o novo custo e o antigo
+      const oldCost = editingActivity.estimatedCost || 0;
+      costDifference = costDifference - oldCost;
+      
       // Atualizar atividade existente
       updatedItinerary = updatedItinerary.map(a => 
         a.id === editingActivity.id ? activity : a
@@ -146,6 +153,11 @@ export default function TravelItinerary({ travel, onUpdate, colors }: TravelItin
           text: 'Excluir',
           style: 'destructive',
           onPress: () => {
+            // Encontrar a atividade para obter o custo estimado
+            const activityToDelete = (travel.itinerary || []).find(
+              activity => activity.id === activityId
+            );
+            
             const updatedItinerary = (travel.itinerary || []).filter(
               activity => activity.id !== activityId
             );
@@ -215,18 +227,30 @@ export default function TravelItinerary({ travel, onUpdate, colors }: TravelItin
 
   const saveTravel = async (updatedTravel: Travel) => {
     try {
+      // Recalcular o valor disponível
+      const totalExpenses = updatedTravel.expenses.reduce((sum, exp) => sum + exp.amount, 0);
+      
+      // Atualizar o valor disponível
+      const updatedTravelWithDiscretionary = {
+        ...updatedTravel,
+        budget: {
+          ...updatedTravel.budget,
+          discretionary: updatedTravel.budget.total - totalExpenses
+        }
+      };
+      
       const travels = await StorageService.loadTravels();
       
       const updatedTravels = travels.map(t => 
-        t.id === updatedTravel.id ? updatedTravel : t
+        t.id === updatedTravelWithDiscretionary.id ? updatedTravelWithDiscretionary : t
       );
       
       await StorageService.saveTravels(updatedTravels);
-      onUpdate(updatedTravel);
+      onUpdate(updatedTravelWithDiscretionary);
       
-      setTimeout(() => {
-        triggerEvent('TRAVEL_UPDATED');
-      }, 300);
+      // Disparar evento imediatamente sem setTimeout
+      triggerEvent('TRAVEL_UPDATED');
+      console.log('Itinerário atualizado e evento TRAVEL_UPDATED disparado');
     } catch (error) {
       console.error('Erro ao salvar itinerário:', error);
       Alert.alert('Erro', 'Ocorreu um erro ao salvar o itinerário');

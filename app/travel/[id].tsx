@@ -30,11 +30,6 @@ export default function TravelForm() {
 
   const [showStartDate, setShowStartDate] = useState(false);
   const [showEndDate, setShowEndDate] = useState(false);
-  const [newPlannedExpense, setNewPlannedExpense] = useState<Partial<TravelExpense>>({
-    category: 'transport',
-    description: '',
-    amount: 0
-  });
 
   useEffect(() => {
     if (!isNew) {
@@ -62,28 +57,34 @@ export default function TravelForm() {
         return;
       }
 
-      const plannedTotal = travel.budget.planned.reduce((sum, exp) => sum + exp.amount, 0);
-      if (plannedTotal > travel.budget.total) {
-        Alert.alert('Erro', 'Os gastos planejados não podem exceder o orçamento total');
-        return;
-      }
+      // Calcular o valor disponível considerando despesas existentes
+      const totalExpenses = travel.expenses.reduce((sum, exp) => sum + exp.amount, 0);
+      
+      // Calcular custos planejados (itinerário + despesas planejadas)
+      const plannedExpenses = travel.budget.planned.reduce((sum, exp) => sum + exp.amount, 0);
+      const itineraryCosts = (travel.itinerary || []).reduce(
+        (sum, activity) => sum + (activity.estimatedCost || 0), 
+        0
+      );
+      const totalPlanned = plannedExpenses + itineraryCosts;
+      
+      // O valor disponível é o orçamento total menos as despesas já realizadas
+      const discretionary = travel.budget.total - totalExpenses;
 
-      // Calculate discretionary budget
       const updatedTravel = {
         ...travel,
         budget: {
           ...travel.budget,
-          discretionary: travel.budget.total - plannedTotal
+          discretionary: discretionary
         }
       };
 
       const success = await StorageService.saveTravel(updatedTravel);
       
       if (success) {
-        // Disparar evento para notificar que uma viagem foi atualizada
-        setTimeout(() => {
-          triggerEvent('TRAVEL_UPDATED');
-        }, 300);
+        // Disparar evento para notificar que uma viagem foi atualizada imediatamente
+        triggerEvent('TRAVEL_UPDATED');
+        console.log('Viagem atualizada e evento TRAVEL_UPDATED disparado');
         
         router.push('/travels');
       } else {
@@ -93,46 +94,6 @@ export default function TravelForm() {
       console.error('Error saving travel:', error);
       Alert.alert('Erro', 'Ocorreu um erro ao salvar a viagem');
     }
-  };
-
-  const handleAddPlannedExpense = () => {
-    if (!newPlannedExpense.description || !newPlannedExpense.amount) {
-      Alert.alert('Erro', 'Por favor, preencha a descrição e o valor');
-      return;
-    }
-
-    const plannedExpense: TravelExpense = {
-      id: Date.now(),
-      category: newPlannedExpense.category || 'transport',
-      description: newPlannedExpense.description || '',
-      amount: Number(newPlannedExpense.amount),
-      date: new Date().toISOString(),
-      isPaid: false
-    };
-
-    setTravel(prev => ({
-      ...prev,
-      budget: {
-        ...prev.budget,
-        planned: [...prev.budget.planned, plannedExpense]
-      }
-    }));
-
-    setNewPlannedExpense({
-      category: 'transport',
-      description: '',
-      amount: 0
-    });
-  };
-
-  const handleDeletePlannedExpense = (expenseId: number) => {
-    setTravel(prev => ({
-      ...prev,
-      budget: {
-        ...prev.budget,
-        planned: prev.budget.planned.filter(exp => exp.id !== expenseId)
-      }
-    }));
   };
 
   const renderDatePicker = (
@@ -224,59 +185,6 @@ export default function TravelForm() {
           placeholderTextColor={colors.text.secondary}
         />
 
-        <View style={styles.plannedExpensesContainer}>
-          <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>
-            Gastos Planejados
-          </Text>
-
-          {travel.budget.planned.map(expense => (
-            <View key={expense.id} style={[styles.plannedExpense, { backgroundColor: colors.card }]}>
-              <View style={styles.plannedExpenseInfo}>
-                <Text style={[styles.expenseDescription, { color: colors.text.primary }]}>
-                  {expense.description}
-                </Text>
-                <Text style={[styles.expenseAmount, { color: colors.text.primary }]}>
-                  R$ {expense.amount.toFixed(2)}
-                </Text>
-              </View>
-              <Pressable
-                onPress={() => handleDeletePlannedExpense(expense.id)}
-                style={styles.deleteButton}
-              >
-                <Trash2 size={20} color={colors.danger} />
-              </Pressable>
-            </View>
-          ))}
-
-          <View style={[styles.addExpenseForm, { backgroundColor: colors.card }]}>
-            <TextInput
-              style={[styles.expenseInput, { color: colors.text.primary }]}
-              value={newPlannedExpense.description}
-              onChangeText={description => 
-                setNewPlannedExpense(prev => ({ ...prev, description }))
-              }
-              placeholder="Descrição"
-              placeholderTextColor={colors.text.secondary}
-            />
-            <TextInput
-              style={[styles.expenseInput, { color: colors.text.primary }]}
-              value={newPlannedExpense.amount?.toString()}
-              onChangeText={amount => 
-                setNewPlannedExpense(prev => ({ ...prev, amount: Number(amount) || 0 }))
-              }
-              keyboardType="numeric"
-              placeholder="Valor"
-              placeholderTextColor={colors.text.secondary}
-            />
-            <Pressable
-              onPress={handleAddPlannedExpense}
-              style={[styles.addButton, { backgroundColor: colors.primary }]}
-            >
-              <Plus size={20} color="#fff" />
-            </Pressable>
-          </View>
-        </View>
-
         <Pressable
           style={[styles.saveButton, { backgroundColor: colors.primary }]}
           onPress={handleSave}
@@ -305,54 +213,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 16,
     justifyContent: 'center',
-  },
-  plannedExpensesContainer: {
-    marginTop: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 16,
-  },
-  plannedExpense: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  plannedExpenseInfo: {
-    flex: 1,
-  },
-  expenseDescription: {
-    fontSize: 16,
-    marginBottom: 4,
-  },
-  expenseAmount: {
-    fontSize: 14,
-  },
-  deleteButton: {
-    padding: 8,
-  },
-  addExpenseForm: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 8,
-    borderRadius: 8,
-    marginTop: 8,
-  },
-  expenseInput: {
-    flex: 1,
-    height: 40,
-    marginRight: 8,
-    paddingHorizontal: 12,
-  },
-  addButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   saveButton: {
     height: 48,

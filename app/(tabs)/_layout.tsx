@@ -1,7 +1,7 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { useTheme } from '../theme/ThemeContext';
-import { Chrome as Home, ChartPie as PieChart, Wallet, Plane } from 'lucide-react-native';
+import { Chrome as Home, ChartPie as PieChart, Wallet, Plane, Cog } from 'lucide-react-native';
 
 export default function TabLayout() {
   const { colors } = useTheme();
@@ -50,6 +50,13 @@ export default function TabLayout() {
         options={{
           title: 'Viagens',
           tabBarIcon: ({ color, size }) => <Plane size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: 'Configurações',
+          tabBarIcon: ({ color, size }) => <Cog size={size} color={color} />,
         }}
       />
     </Tabs>
