@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, TextInput, Alert, ScrollView, Modal, Platform, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Plus, MapPin, Clock, Calendar, Edit2, Trash2, Check } from 'lucide-react-native';
+import { Plus, MapPin, Clock, Calendar, Edit2, Trash2, Check, ChevronDown } from 'lucide-react-native';
 import { Travel, TravelActivity, StorageService } from '../utils/storage';
 import { useEvent } from '../utils/EventContext';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { AntDesign } from '@expo/vector-icons';
 
 interface TravelItineraryProps {
   travel: Travel;
@@ -32,6 +34,21 @@ export default function TravelItinerary({ travel, onUpdate, colors }: TravelItin
     startTime: '08:00',
     endTime: ''
   });
+  
+  // Estados para controlar os seletores de horário
+  const [showStartTimePicker, setShowStartTimePicker] = useState(false);
+  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
+  
+  // Data de referência para os seletores (usamos a data selecionada ou a data atual)
+  const getTimeSelectorDate = () => {
+    if (selectedDay) {
+      const [year, month, day] = selectedDay.split('-').map(Number);
+      const date = new Date();
+      date.setFullYear(year, month - 1, day);
+      return date;
+    }
+    return new Date();
+  };
 
   // Gerar array de dias entre as datas de início e fim da viagem
   const getDaysArray = () => {
@@ -78,65 +95,76 @@ export default function TravelItinerary({ travel, onUpdate, colors }: TravelItin
   };
 
   const handleAddActivity = () => {
-    if (!selectedDay) return;
+    if (!newActivity.title || !selectedDay || !newActivity.startTime) {
+      Alert.alert('Erro', 'Título, dia e horário de início são obrigatórios');
+      return;
+    }
     
-    if (!newActivity.title || !newActivity.location) {
-      Alert.alert('Erro', 'Por favor, preencha o título e o local');
+    saveActivity();
+  };
+
+  const saveActivity = () => {
+    if (!newActivity.title || !selectedDay || !newActivity.startTime) {
       return;
     }
 
-    // Extrair as horas e minutos
-    const [hours, minutes] = (newActivity.startTime || '08:00').split(':');
+    // Criar data ISO a partir da data selecionada e hora
+    const [year, month, day] = selectedDay.split('-').map(Number);
+    const [startHours, startMinutes] = newActivity.startTime.split(':').map(Number);
     
-    // Criar a string ISO diretamente
-    // Formato: YYYY-MM-DDTHH:MM:00.000Z
-    const startDateTime = `${selectedDay}T${hours}:${minutes}:00.000Z`;
-
-    // Fazer o mesmo para a hora de término, se existir
-    let endDateTime;
+    const startDateObj = new Date();
+    startDateObj.setFullYear(year, month - 1, day);
+    startDateObj.setHours(startHours || 0, startMinutes || 0, 0, 0);
+    
+    let endDateObj: Date | undefined;
     if (newActivity.endTime) {
-      const [endHours, endMinutes] = newActivity.endTime.split(':');
-      endDateTime = `${selectedDay}T${endHours}:${endMinutes}:00.000Z`;
+      const [endHours, endMinutes] = newActivity.endTime.split(':').map(Number);
+      endDateObj = new Date();
+      endDateObj.setFullYear(year, month - 1, day);
+      endDateObj.setHours(endHours || 0, endMinutes || 0, 0, 0);
     }
-
-    const activity: TravelActivity = {
-      id: editingActivity?.id || Date.now(),
-      title: newActivity.title || '',
-      category: newActivity.category || 'passeio',
-      startDateTime: startDateTime,
-      endDateTime: endDateTime,
-      location: newActivity.location || '',
-      notes: newActivity.notes,
-      estimatedCost: Number(newActivity.estimatedCost) || 0,
-      completed: editingActivity?.completed || false
-    };
-
-    // Garantir que o itinerário seja inicializado mesmo quando não existe
-    let updatedItinerary = [...(travel.itinerary || [])];
     
-    // Calcular a diferença de custo para atualizar o valor disponível
-    let costDifference = Number(newActivity.estimatedCost) || 0;
+    const updatedTravelData = { ...travel };
+    if (!updatedTravelData.itinerary) {
+      updatedTravelData.itinerary = [];
+    }
     
     if (editingActivity) {
-      // Se estiver editando, calcular a diferença entre o novo custo e o antigo
-      const oldCost = editingActivity.estimatedCost || 0;
-      costDifference = costDifference - oldCost;
-      
-      // Atualizar atividade existente
-      updatedItinerary = updatedItinerary.map(a => 
-        a.id === editingActivity.id ? activity : a
-      );
+      // Editar atividade existente
+      const activityIndex = updatedTravelData.itinerary.findIndex(a => a.id === editingActivity.id);
+      if (activityIndex !== -1) {
+        updatedTravelData.itinerary[activityIndex] = {
+          ...updatedTravelData.itinerary[activityIndex],
+          title: newActivity.title,
+          category: newActivity.category || 'outro',
+          startDateTime: startDateObj.toISOString(),
+          endDateTime: endDateObj ? endDateObj.toISOString() : undefined,
+          location: newActivity.location || '',
+          notes: newActivity.notes,
+          estimatedCost: Number(newActivity.estimatedCost) || 0
+        };
+      }
     } else {
       // Adicionar nova atividade
-      updatedItinerary.push(activity);
+      const newActivityId = Date.now();
+      updatedTravelData.itinerary.push({
+        id: newActivityId,
+        title: newActivity.title,
+        category: newActivity.category || 'outro',
+        startDateTime: startDateObj.toISOString(),
+        endDateTime: endDateObj ? endDateObj.toISOString() : undefined,
+        location: newActivity.location || '',
+        notes: newActivity.notes,
+        estimatedCost: Number(newActivity.estimatedCost) || 0,
+        completed: false,
+      });
     }
-
-    const updatedTravel = {
-      ...travel,
-      itinerary: updatedItinerary
-    };
-
-    saveTravel(updatedTravel);
+    
+    // Atualizar a viagem
+    onUpdate(updatedTravelData);
+    
+    // Fechar modal e resetar formulário
+    setShowAddModal(false);
     resetForm();
   };
 
@@ -193,34 +221,24 @@ export default function TravelItinerary({ travel, onUpdate, colors }: TravelItin
   };
 
   const handleEditActivity = (activity: TravelActivity) => {
-    // Extrair as horas e minutos da string ISO diretamente
-    const startTimeString = activity.startDateTime.split('T')[1]; // Pega a parte após o T
-    const startHours = startTimeString.substring(0, 2);
-    const startMinutes = startTimeString.substring(3, 5);
-    const startTime = `${startHours}:${startMinutes}`;
+    // Extrair os horários das datas ISO
+    const startTime = formatTime(activity.startDateTime);
+    const endTime = activity.endDateTime ? formatTime(activity.endDateTime) : '';
     
-    let endTime = '';
-    if (activity.endDateTime) {
-      const endTimeString = activity.endDateTime.split('T')[1];
-      const endHours = endTimeString.substring(0, 2);
-      const endMinutes = endTimeString.substring(3, 5);
-      endTime = `${endHours}:${endMinutes}`;
-    }
+    // Formatar a data selecionada para o formato YYYY-MM-DD
+    const datePart = activity.startDateTime.split('T')[0];
+    setSelectedDay(datePart);
     
     setEditingActivity(activity);
     setNewActivity({
       title: activity.title,
       category: activity.category,
-      startTime,
-      endTime,
-      location: activity.location,
+      location: activity.location || '',
       notes: activity.notes,
-      estimatedCost: activity.estimatedCost || 0
+      estimatedCost: activity.estimatedCost || 0,
+      startTime,
+      endTime
     });
-    
-    // Extrair a data da string ISO (YYYY-MM-DD)
-    const datePart = activity.startDateTime.split('T')[0];
-    setSelectedDay(datePart);
     
     setShowAddModal(true);
   };
@@ -261,14 +279,17 @@ export default function TravelItinerary({ travel, onUpdate, colors }: TravelItin
     setNewActivity({
       title: '',
       category: 'passeio',
-      startTime: '08:00',
-      endTime: '',
       location: '',
       notes: '',
-      estimatedCost: 0
+      estimatedCost: 0,
+      completed: false,
+      startTime: '08:00',
+      endTime: ''
     });
     setEditingActivity(null);
     setShowAddModal(false);
+    setShowStartTimePicker(false);
+    setShowEndTimePicker(false);
   };
 
   const formatDate = (date: Date) => {
@@ -312,6 +333,55 @@ export default function TravelItinerary({ travel, onUpdate, colors }: TravelItin
     const minutes = timeString.substring(3, 5);
     
     return `${hours}:${minutes}`;
+  };
+
+  // Converte uma string de tempo (HH:MM) para um objeto Date
+  const timeStringToDate = (timeString?: string) => {
+    const baseDate = getTimeSelectorDate();
+    
+    if (!timeString) {
+      // Se não houver horário, retorna 8:00 como padrão
+      baseDate.setHours(8, 0, 0, 0);
+      return baseDate;
+    }
+    
+    const [hours, minutes] = timeString.split(':').map(Number);
+    
+    if (isNaN(hours) || isNaN(minutes)) {
+      baseDate.setHours(8, 0, 0, 0);
+      return baseDate;
+    }
+    
+    baseDate.setHours(hours, minutes, 0, 0);
+    return baseDate;
+  };
+
+  // Função para converter objeto Date para string de hora (HH:MM)
+  const dateToTimeString = (date: Date) => {
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
+  };
+
+  // Manipuladores para os seletores de horário
+  const handleStartTimeChange = (event: any, selectedDate?: Date) => {
+    setShowStartTimePicker(Platform.OS === 'ios');
+    if (selectedDate) {
+      setNewActivity(prev => ({
+        ...prev,
+        startTime: dateToTimeString(selectedDate)
+      }));
+    }
+  };
+
+  const handleEndTimeChange = (event: any, selectedDate?: Date) => {
+    setShowEndTimePicker(Platform.OS === 'ios');
+    if (selectedDate) {
+      setNewActivity(prev => ({
+        ...prev,
+        endTime: dateToTimeString(selectedDate)
+      }));
+    }
   };
 
   return (
@@ -508,25 +578,47 @@ export default function TravelItinerary({ travel, onUpdate, colors }: TravelItin
               
               <View style={styles.timeContainer}>
                 <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
-                  <Text style={[styles.label, { color: colors.text.secondary }]}>Hora Início</Text>
-                  <TextInput
-                    style={[styles.input, { color: colors.text.primary, backgroundColor: colors.card }]}
-                    value={newActivity.startTime}
-                    onChangeText={startTime => setNewActivity(prev => ({ ...prev, startTime }))}
-                    placeholder="08:00"
-                    placeholderTextColor={colors.text.secondary}
-                  />
+                  <Text style={[styles.label, { color: colors.text.secondary }]}>Horário Início</Text>
+                  <Pressable 
+                    style={[styles.timePickerButton, { backgroundColor: colors.card }]}
+                    onPress={() => setShowStartTimePicker(true)}
+                  >
+                    <Text style={[styles.timeText, { color: colors.text.primary }]}>
+                      {newActivity.startTime || '08:00'}
+                    </Text>
+                    <AntDesign name="clockcircleo" size={16} color={colors.text.secondary} />
+                  </Pressable>
+                  {showStartTimePicker && (
+                    <DateTimePicker
+                      value={timeStringToDate(newActivity.startTime)}
+                      mode="time"
+                      is24Hour={true}
+                      display="default"
+                      onChange={handleStartTimeChange}
+                    />
+                  )}
                 </View>
                 
                 <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
-                  <Text style={[styles.label, { color: colors.text.secondary }]}>Hora Fim</Text>
-                  <TextInput
-                    style={[styles.input, { color: colors.text.primary, backgroundColor: colors.card }]}
-                    value={newActivity.endTime}
-                    onChangeText={endTime => setNewActivity(prev => ({ ...prev, endTime }))}
-                    placeholder="10:00"
-                    placeholderTextColor={colors.text.secondary}
-                  />
+                  <Text style={[styles.label, { color: colors.text.secondary }]}>Horário Fim</Text>
+                  <Pressable 
+                    style={[styles.timePickerButton, { backgroundColor: colors.card }]}
+                    onPress={() => setShowEndTimePicker(true)}
+                  >
+                    <Text style={[styles.timeText, { color: colors.text.primary }]}>
+                      {newActivity.endTime || 'Opcional'}
+                    </Text>
+                    <AntDesign name="clockcircleo" size={16} color={colors.text.secondary} />
+                  </Pressable>
+                  {showEndTimePicker && (
+                    <DateTimePicker
+                      value={timeStringToDate(newActivity.endTime)}
+                      mode="time"
+                      is24Hour={true}
+                      display="default"
+                      onChange={handleEndTimeChange}
+                    />
+                  )}
                 </View>
               </View>
               
@@ -576,11 +668,15 @@ export default function TravelItinerary({ travel, onUpdate, colors }: TravelItin
               </Pressable>
               
               <Pressable 
-                style={[styles.modalButton, styles.saveButton, { backgroundColor: colors.primary }]}
-                onPress={handleAddActivity}
+                style={[
+                  styles.modalButton, 
+                  styles.saveButton, 
+                  { backgroundColor: colors.primary }
+                ]}
+                onPress={saveActivity}
               >
                 <Text style={styles.saveButtonText}>
-                  {editingActivity ? 'Atualizar' : 'Adicionar'}
+                  {editingActivity ? 'Salvar' : 'Adicionar'}
                 </Text>
               </Pressable>
             </View>
@@ -800,15 +896,14 @@ const styles = StyleSheet.create({
   },
   modalButton: {
     flex: 1,
-    paddingVertical: 10,
+    padding: 12,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 44,
+    borderWidth: 1,
   },
   cancelButton: {
     marginRight: 6,
-    borderWidth: 1,
   },
   saveButton: {
     marginLeft: 6,
@@ -821,5 +916,23 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     width: '100%',
     marginBottom: 8,
+  },
+  timePickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 10,
+    borderRadius: 8,
+    height: 44,
+  },
+  timeText: {
+    fontSize: 14,
+  },
+  inputContainer: {
+    marginBottom: 12,
+  },
+  actionButtonText: {
+    color: '#fff',
+    fontWeight: '600',
   },
 }); 

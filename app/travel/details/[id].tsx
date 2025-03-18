@@ -2,11 +2,16 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert, Platform, StatusBar, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme/ThemeContext';
-import { Travel, TravelExpense, TravelActivity, StorageService } from '../../utils/storage';
+import { Travel, TravelExpense as BaseTravelExpense, TravelActivity, StorageService } from '../../utils/storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Plus, Edit2, ArrowLeft, Calendar, MapPin, DollarSign, Wallet, Briefcase, CreditCard, TrendingDown, TrendingUp, X, Check, Trash2 } from 'lucide-react-native';
 import TravelItinerary from '../../components/TravelItinerary';
 import { useEvent } from '../../utils/EventContext';
+
+// Estender o tipo TravelExpense para incluir a propriedade isActivity
+interface TravelExpense extends BaseTravelExpense {
+  isActivity?: boolean;
+}
 
 export default function TravelDetails() {
   const { colors, theme } = useTheme();
@@ -57,13 +62,10 @@ export default function TravelDetails() {
   const calculateRemainingBudget = () => {
     if (!travel) return 0;
     
-    // Soma das despesas
-    const totalSpent = travel.expenses.reduce((sum, exp) => sum + exp.amount, 0);
+    // Saldo restante = orçamento total - despesas planejadas
+    const totalPlanned = calculateTotalEstimatedCosts();
     
-    // Usar a função de cálculo do total de custos estimados
-    const totalEstimatedCosts = calculateTotalEstimatedCosts();
-    
-    return travel.budget.total - totalSpent - totalEstimatedCosts;
+    return travel.budget.total - totalPlanned;
   };
 
   const calculateTotalEstimatedCosts = () => {
@@ -105,15 +107,22 @@ export default function TravelDetails() {
   const calculateDiscretionaryRemaining = () => {
     if (!travel) return 0;
     
-    // Despesas não planejadas
-    const discretionarySpent = travel.expenses
-      .filter(e => !travel.budget.planned.some(p => p.id === e.id))
-      .reduce((sum, exp) => sum + exp.amount, 0);
+    // Livre para gastar = orçamento total - despesas planejadas - despesas reais
+    const totalPlanned = calculateTotalEstimatedCosts();
+    const totalSpent = travel.expenses.reduce((sum, exp) => sum + exp.amount, 0);
     
-    // Usar a função de cálculo do total de custos estimados
-    const totalEstimatedCosts = calculateTotalEstimatedCosts();
+    return travel.budget.total - totalPlanned - totalSpent;
+  };
+
+  const calculatePercentageSpent = () => {
+    if (!travel || travel.budget.total <= 0) return 0;
     
-    return travel.budget.discretionary - discretionarySpent - totalEstimatedCosts;
+    // Soma das despesas reais
+    const totalSpent = travel.expenses.reduce((sum, exp) => sum + exp.amount, 0);
+    
+    // Calcular com base apenas nas despesas reais sobre o total
+    const percentage = Math.round((totalSpent / travel.budget.total) * 100);
+    return Math.min(percentage, 100); // Limitar a 100%
   };
 
   const handleAddExpense = async () => {
@@ -131,17 +140,10 @@ export default function TravelDetails() {
       isPaid: false
     };
 
-    // Calcular o novo valor disponível
-    const newDiscretionary = travel.budget.discretionary - Number(newExpense.amount);
-
     // Atualizar o estado local
     const updatedTravel: Travel = {
       ...travel,
-      expenses: [...travel.expenses, expense],
-      budget: {
-        ...travel.budget,
-        discretionary: newDiscretionary
-      }
+      expenses: [...travel.expenses, expense]
     };
     
     setTravel(updatedTravel);
@@ -155,10 +157,14 @@ export default function TravelDetails() {
 
     // Salvar diretamente sem debounce para garantir atualização imediata
     try {
-      await StorageService.saveTravel(updatedTravel);
-      // Disparar evento para notificar que uma viagem foi atualizada
-      triggerEvent('TRAVEL_UPDATED');
-      console.log('Despesa adicionada e evento TRAVEL_UPDATED disparado');
+      const success = await StorageService.saveTravel(updatedTravel);
+      if (success) {
+        // Disparar evento para notificar que uma viagem foi atualizada
+        triggerEvent('TRAVEL_UPDATED');
+        console.log('Despesa adicionada e evento TRAVEL_UPDATED disparado');
+      } else {
+        Alert.alert('Erro', 'Ocorreu um erro ao salvar a despesa');
+      }
     } catch (error) {
       console.error('Error saving travel after adding expense:', error);
       Alert.alert('Erro', 'Ocorreu um erro ao salvar a despesa');
@@ -200,10 +206,14 @@ export default function TravelDetails() {
 
     // Salvar diretamente sem debounce para garantir atualização imediata
     try {
-      await StorageService.saveTravel(updatedTravel);
-      // Disparar evento para notificar que uma viagem foi atualizada
-      triggerEvent('TRAVEL_UPDATED');
-      console.log('Despesa planejada adicionada e evento TRAVEL_UPDATED disparado');
+      const success = await StorageService.saveTravel(updatedTravel);
+      if (success) {
+        // Disparar evento para notificar que uma viagem foi atualizada
+        triggerEvent('TRAVEL_UPDATED');
+        console.log('Despesa planejada adicionada e evento TRAVEL_UPDATED disparado');
+      } else {
+        Alert.alert('Erro', 'Ocorreu um erro ao salvar a despesa planejada');
+      }
     } catch (error) {
       console.error('Error saving travel after adding planned expense:', error);
       Alert.alert('Erro', 'Ocorreu um erro ao salvar a despesa planejada');
@@ -214,23 +224,11 @@ export default function TravelDetails() {
     // Log para depuração
     console.log('handleUpdateTravel - updatedTravel recebido:', updatedTravel);
     
-    // Recalcular o valor disponível
-    const totalExpenses = updatedTravel.expenses.reduce((sum, exp) => sum + exp.amount, 0);
-    
-    // Atualizar o valor disponível
-    const updatedTravelWithDiscretionary = {
-      ...updatedTravel,
-      budget: {
-        ...updatedTravel.budget,
-        discretionary: updatedTravel.budget.total - totalExpenses
-      }
-    };
-    
-    setTravel(updatedTravelWithDiscretionary);
+    setTravel(updatedTravel);
     
     // Salvar as alterações no StorageService
     try {
-      const success = await StorageService.saveTravel(updatedTravelWithDiscretionary);
+      const success = await StorageService.saveTravel(updatedTravel);
       
       // Log para depuração
       console.log('handleUpdateTravel - resultado do saveTravel:', success);
@@ -260,30 +258,23 @@ export default function TravelDetails() {
           text: 'Excluir',
           style: 'destructive',
           onPress: async () => {
-            // Encontrar a despesa para obter o valor
-            const expenseToDelete = travel.expenses.find(e => e.id === expenseId);
-            if (!expenseToDelete) return;
-            
-            // Atualizar o valor disponível
-            const newDiscretionary = travel.budget.discretionary + expenseToDelete.amount;
-            
             // Remover a despesa
             const updatedTravel: Travel = {
               ...travel,
-              expenses: travel.expenses.filter(e => e.id !== expenseId),
-              budget: {
-                ...travel.budget,
-                discretionary: newDiscretionary
-              }
+              expenses: travel.expenses.filter(e => e.id !== expenseId)
             };
             
             setTravel(updatedTravel);
             
             // Salvar as alterações
             try {
-              await StorageService.saveTravel(updatedTravel);
-              triggerEvent('TRAVEL_UPDATED');
-              console.log('Despesa excluída e evento TRAVEL_UPDATED disparado');
+              const success = await StorageService.saveTravel(updatedTravel);
+              if (success) {
+                triggerEvent('TRAVEL_UPDATED');
+                console.log('Despesa excluída e evento TRAVEL_UPDATED disparado');
+              } else {
+                Alert.alert('Erro', 'Ocorreu um erro ao excluir a despesa');
+              }
             } catch (error) {
               console.error('Error saving travel after deleting expense:', error);
               Alert.alert('Erro', 'Ocorreu um erro ao excluir a despesa');
@@ -319,9 +310,13 @@ export default function TravelDetails() {
             
             // Salvar as alterações
             try {
-              await StorageService.saveTravel(updatedTravel);
-              triggerEvent('TRAVEL_UPDATED');
-              console.log('Despesa planejada excluída e evento TRAVEL_UPDATED disparado');
+              const success = await StorageService.saveTravel(updatedTravel);
+              if (success) {
+                triggerEvent('TRAVEL_UPDATED');
+                console.log('Despesa planejada excluída e evento TRAVEL_UPDATED disparado');
+              } else {
+                Alert.alert('Erro', 'Ocorreu um erro ao excluir a despesa planejada');
+              }
             } catch (error) {
               console.error('Error saving travel after deleting planned expense:', error);
               Alert.alert('Erro', 'Ocorreu um erro ao excluir a despesa planejada');
@@ -359,10 +354,6 @@ export default function TravelDetails() {
       return;
     }
     
-    // Calcular a diferença no valor para atualizar o valor disponível
-    const amountDifference = Number(newExpense.amount) - editingExpense.amount;
-    const newDiscretionary = travel.budget.discretionary - amountDifference;
-    
     // Atualizar a despesa
     const updatedExpenses = travel.expenses.map(e => 
       e.id === editingExpense.id 
@@ -378,11 +369,7 @@ export default function TravelDetails() {
     // Atualizar o estado local
     const updatedTravel: Travel = {
       ...travel,
-      expenses: updatedExpenses,
-      budget: {
-        ...travel.budget,
-        discretionary: newDiscretionary
-      }
+      expenses: updatedExpenses
     };
     
     setTravel(updatedTravel);
@@ -397,9 +384,13 @@ export default function TravelDetails() {
     
     // Salvar as alterações
     try {
-      await StorageService.saveTravel(updatedTravel);
-      triggerEvent('TRAVEL_UPDATED');
-      console.log('Despesa atualizada e evento TRAVEL_UPDATED disparado');
+      const success = await StorageService.saveTravel(updatedTravel);
+      if (success) {
+        triggerEvent('TRAVEL_UPDATED');
+        console.log('Despesa atualizada e evento TRAVEL_UPDATED disparado');
+      } else {
+        Alert.alert('Erro', 'Ocorreu um erro ao atualizar a despesa');
+      }
     } catch (error) {
       console.error('Error saving travel after updating expense:', error);
       Alert.alert('Erro', 'Ocorreu um erro ao atualizar a despesa');
@@ -445,13 +436,136 @@ export default function TravelDetails() {
     
     // Salvar as alterações
     try {
-      await StorageService.saveTravel(updatedTravel);
-      triggerEvent('TRAVEL_UPDATED');
-      console.log('Despesa planejada atualizada e evento TRAVEL_UPDATED disparado');
+      const success = await StorageService.saveTravel(updatedTravel);
+      if (success) {
+        triggerEvent('TRAVEL_UPDATED');
+        console.log('Despesa planejada atualizada e evento TRAVEL_UPDATED disparado');
+      } else {
+        Alert.alert('Erro', 'Ocorreu um erro ao atualizar a despesa planejada');
+      }
     } catch (error) {
       console.error('Error saving travel after updating planned expense:', error);
       Alert.alert('Erro', 'Ocorreu um erro ao atualizar a despesa planejada');
     }
+  };
+
+  const handleEditActivityCost = (activity: TravelActivity) => {
+    const activityExpense: TravelExpense = {
+      id: activity.id,
+      category: activity.category,
+      description: activity.title,
+      amount: activity.estimatedCost || 0,
+      date: activity.startDateTime,
+      isPaid: false,
+      isActivity: true // Campo extra para identificar que é uma atividade
+    };
+    
+    setEditingPlannedExpense(activityExpense);
+    setNewPlannedExpense({
+      category: activity.category,
+      description: activity.title,
+      amount: activity.estimatedCost || 0
+    });
+  };
+  
+  const handleDeleteActivityCost = (activityId: number) => {
+    if (!travel) return;
+    
+    Alert.alert(
+      'Remover Custo da Atividade',
+      'Deseja remover o custo estimado desta atividade?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Remover',
+          style: 'destructive',
+          onPress: async () => {
+            // Encontrar a atividade para editar
+            const updatedItinerary = travel.itinerary?.map(a => 
+              a.id === activityId 
+                ? { ...a, estimatedCost: 0 }
+                : a
+            ) || [];
+            
+            // Atualizar o estado local
+            const updatedTravel: Travel = {
+              ...travel,
+              itinerary: updatedItinerary
+            };
+            
+            setTravel(updatedTravel);
+            
+            // Salvar as alterações
+            try {
+              const success = await StorageService.saveTravel(updatedTravel);
+              if (success) {
+                triggerEvent('TRAVEL_UPDATED');
+                console.log('Custo da atividade removido e evento TRAVEL_UPDATED disparado');
+              } else {
+                Alert.alert('Erro', 'Ocorreu um erro ao remover o custo da atividade');
+              }
+            } catch (error) {
+              console.error('Error saving travel after removing activity cost:', error);
+              Alert.alert('Erro', 'Ocorreu um erro ao remover o custo da atividade');
+            }
+          }
+        }
+      ]
+    );
+  };
+  
+  const handleUpdateActivityCost = async () => {
+    if (!travel || !editingPlannedExpense || !newPlannedExpense.amount) {
+      Alert.alert('Erro', 'Por favor, preencha o valor');
+      return;
+    }
+    
+    // Verificar se é uma atividade
+    if (editingPlannedExpense.isActivity) {
+      // Atualizar custo da atividade
+      const activityId = editingPlannedExpense.id;
+      
+      // Encontrar a atividade para editar
+      const updatedItinerary = travel.itinerary?.map(a => 
+        a.id === activityId 
+          ? { ...a, estimatedCost: Number(newPlannedExpense.amount) }
+          : a
+      ) || [];
+      
+      // Atualizar o estado local
+      const updatedTravel: Travel = {
+        ...travel,
+        itinerary: updatedItinerary
+      };
+      
+      setTravel(updatedTravel);
+      
+      // Limpar o formulário
+      setNewPlannedExpense({
+        category: 'other',
+        description: '',
+        amount: 0
+      });
+      setEditingPlannedExpense(null);
+      
+      // Salvar as alterações
+      try {
+        const success = await StorageService.saveTravel(updatedTravel);
+        if (success) {
+          triggerEvent('TRAVEL_UPDATED');
+          console.log('Custo da atividade atualizado e evento TRAVEL_UPDATED disparado');
+        } else {
+          Alert.alert('Erro', 'Ocorreu um erro ao atualizar o custo da atividade');
+        }
+      } catch (error) {
+        console.error('Error saving travel after updating activity cost:', error);
+        Alert.alert('Erro', 'Ocorreu um erro ao atualizar o custo da atividade');
+      }
+      return;
+    }
+    
+    // Continuar com a atualização de despesa planejada normal
+    handleUpdatePlannedExpense();
   };
 
   if (!travel) {
@@ -480,7 +594,7 @@ export default function TravelDetails() {
           <Pressable onPress={() => router.push({
             pathname: '/travel/[id]',
             params: { id: travel.id }
-          })} style={styles.editButton}>
+          })} style={styles.headerEditButton}>
             <Edit2 size={24} color={colors.primary} />
           </Pressable>
         </View>
@@ -614,7 +728,7 @@ export default function TravelDetails() {
                 <View style={[styles.budgetItem, { backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: 8, borderRadius: 6, marginTop: 4 }]}>
                   <View style={styles.budgetLabelContainer}>
                     <DollarSign size={14} color={colors.danger} style={{ marginRight: 4 }} />
-                    <Text style={[styles.budgetLabel, { color: colors.text.primary, fontWeight: 'bold' }]}>Total Planejado</Text>
+                    <Text style={[styles.budgetLabel, { color: colors.danger, fontWeight: 'bold' }]}>Total Planejado</Text>
                   </View>
                   <Text style={[styles.budgetValue, { color: colors.danger, fontWeight: 'bold' }]}>
                     R$ {calculateTotalEstimatedCosts().toFixed(2)}
@@ -704,15 +818,13 @@ export default function TravelDetails() {
                     <Text style={[styles.budgetLabel, { color: colors.text.secondary }]}>Porcentagem Gasta</Text>
                   </View>
                   <Text style={[styles.budgetValue, { 
-                    color: travel.expenses.reduce((sum, exp) => sum + exp.amount, 0) / travel.budget.total > 0.8 
+                    color: calculatePercentageSpent() > 80
                       ? colors.danger 
-                      : travel.expenses.reduce((sum, exp) => sum + exp.amount, 0) / travel.budget.total > 0.5 
+                      : calculatePercentageSpent() > 50
                         ? colors.warning
                         : colors.success
                   }]}>
-                    {travel.budget.total > 0 
-                      ? `${Math.round((travel.expenses.reduce((sum, exp) => sum + exp.amount, 0) / travel.budget.total) * 100)}%` 
-                      : '0%'}
+                    {`${calculatePercentageSpent()}%`}
                   </Text>
                 </View>
                 
@@ -721,12 +833,10 @@ export default function TravelDetails() {
                   <View 
                     style={{ 
                       height: '100%', 
-                      width: `${travel.budget.total > 0 
-                        ? Math.min(Math.round((travel.expenses.reduce((sum, exp) => sum + exp.amount, 0) / travel.budget.total) * 100), 100)
-                        : 0}%`, 
-                      backgroundColor: travel.expenses.reduce((sum, exp) => sum + exp.amount, 0) / travel.budget.total > 0.8 
+                      width: `${Math.min(calculatePercentageSpent(), 100)}%`, 
+                      backgroundColor: calculatePercentageSpent() > 80
                         ? colors.danger 
-                        : travel.expenses.reduce((sum, exp) => sum + exp.amount, 0) / travel.budget.total > 0.5 
+                        : calculatePercentageSpent() > 50
                           ? colors.warning
                           : colors.success,
                       borderRadius: 4
@@ -883,13 +993,13 @@ export default function TravelDetails() {
                                 amount: 0
                               });
                             }}
-                            style={[styles.editButton, { backgroundColor: colors.danger }]}
+                            style={[styles.editButtonStyle, { backgroundColor: colors.danger }]}
                           >
                             <X size={16} color="#fff" />
                           </Pressable>
                           <Pressable
                             onPress={handleUpdateExpense}
-                            style={[styles.editButton, { backgroundColor: colors.success }]}
+                            style={[styles.editButtonStyle, { backgroundColor: colors.success }]}
                           >
                             <Check size={16} color="#fff" />
                           </Pressable>
@@ -943,16 +1053,33 @@ export default function TravelDetails() {
                       .map(activity => (
                         <View key={`activity-${activity.id}`} style={[styles.expenseItem, { backgroundColor: colors.card }]}>
                           <View style={styles.expenseInfo}>
-                            <Text style={[styles.expenseDescription, { color: colors.text.primary }]}>
-                              {activity.title}
-                            </Text>
+                            <View style={styles.expenseTitleContainer}>
+                              <Calendar size={14} color={colors.primary} style={{ marginRight: 6 }} />
+                              <Text style={[styles.expenseDescription, { color: colors.text.primary }]}>
+                                {activity.title}
+                              </Text>
+                            </View>
                             <Text style={[styles.expenseDate, { color: colors.text.secondary }]}>
                               {activity.category} - {new Date(activity.startDateTime).toLocaleDateString()}
                             </Text>
                           </View>
-                          <Text style={[styles.expenseAmount, { color: colors.text.primary }]}>
-                            R$ {(activity.estimatedCost || 0).toFixed(2)}
-                          </Text>
+                          <View style={styles.expenseActions}>
+                            <Text style={[styles.expenseAmount, { color: colors.text.primary, marginRight: 10 }]}>
+                              R$ {(activity.estimatedCost || 0).toFixed(2)}
+                            </Text>
+                            <Pressable
+                              onPress={() => handleEditActivityCost(activity)}
+                              style={[styles.actionIconButton, { marginRight: 6 }]}
+                            >
+                              <Edit2 size={16} color={colors.primary} />
+                            </Pressable>
+                            <Pressable
+                              onPress={() => handleDeleteActivityCost(activity.id)}
+                              style={styles.actionIconButton}
+                            >
+                              <Trash2 size={16} color={colors.danger} />
+                            </Pressable>
+                          </View>
                         </View>
                       ))
                     }
@@ -984,16 +1111,21 @@ export default function TravelDetails() {
                                 amount: 0
                               });
                             }}
-                            style={[styles.editButton, { backgroundColor: colors.danger }]}
+                            style={[styles.editButtonStyle, { backgroundColor: colors.danger }]}
                           >
                             <X size={16} color="#fff" />
                           </Pressable>
                           <Pressable
-                            onPress={handleUpdatePlannedExpense}
-                            style={[styles.editButton, { backgroundColor: colors.success }]}
+                            onPress={handleUpdateActivityCost}
+                            style={[styles.editButtonStyle, { backgroundColor: colors.success }]}
                           >
                             <Check size={16} color="#fff" />
                           </Pressable>
+                          {editingPlannedExpense.isActivity && (
+                            <Text style={[styles.smallText, { color: colors.text.secondary, marginLeft: 8 }]}>
+                              Editando custo da atividade
+                            </Text>
+                          )}
                         </View>
                       ) : (
                         <Pressable
@@ -1047,7 +1179,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginHorizontal: 12,
   },
-  editButton: {
+  headerEditButton: {
     padding: 6,
   },
   title: {
@@ -1237,12 +1369,19 @@ const styles = StyleSheet.create({
   actionIconButton: {
     padding: 4,
   },
-  editButton: {
+  editButtonStyle: {
     width: 32,
     height: 32,
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
     marginHorizontal: 2,
+  },
+  expenseTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  smallText: {
+    fontSize: 12,
   },
 }); 
