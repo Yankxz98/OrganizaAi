@@ -33,8 +33,37 @@ export default function TravelsScreen() {
     setTravels(loadedTravels);
   };
 
-  const handleAddTravel = () => {
-    router.push('/travel/new');
+  const handleAddTravel = async () => {
+    // Criar uma nova viagem com estrutura básica
+    const newTravel = {
+      id: Date.now(),
+      name: 'Nova Viagem',
+      startDate: new Date().toISOString(),
+      endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // Uma semana depois
+      budget: {
+        total: 0,
+        planned: [],
+        discretionary: 0 // Mantido por compatibilidade, mas não será usado
+      },
+      expenses: [],
+      itinerary: []
+    };
+    
+    // Salvar no banco de dados antes de navegar
+    try {
+      const success = await StorageService.saveTravel(newTravel);
+      if (success) {
+        router.push({
+          pathname: '/travel/[id]',
+          params: { id: newTravel.id }
+        });
+      } else {
+        Alert.alert('Erro', 'Não foi possível criar a nova viagem');
+      }
+    } catch (error) {
+      console.error('Erro ao criar nova viagem:', error);
+      Alert.alert('Erro', 'Ocorreu um erro ao criar a nova viagem');
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -48,6 +77,25 @@ export default function TravelsScreen() {
     const diffTime = start.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays;
+  };
+
+  const calculateAvailableBudget = (travel: Travel) => {
+    // Calcular despesas reais
+    const realExpenses = travel.expenses.reduce((sum, exp) => sum + exp.amount, 0);
+    
+    // Calcular despesas planejadas (itinerário + planejadas)
+    const itineraryCosts = (travel.itinerary || []).reduce(
+      (sum, activity) => sum + (activity.estimatedCost || 0), 
+      0
+    );
+    
+    const plannedExpenses = travel.budget.planned.reduce(
+      (sum, expense) => sum + expense.amount,
+      0
+    );
+    
+    // Valor disponível = total - (reais + planejadas)
+    return travel.budget.total - realExpenses - itineraryCosts - plannedExpenses;
   };
 
   const handleDeleteTravel = async (travel: Travel) => {
@@ -159,9 +207,9 @@ export default function TravelsScreen() {
                       </Text>
                       <Text style={[
                         styles.discretionaryText, 
-                        { color: item.budget.discretionary >= 0 ? colors.success : colors.danger }
+                        { color: calculateAvailableBudget(item) >= 0 ? colors.success : colors.danger }
                       ]}>
-                        Disponível: R$ {item.budget.discretionary.toFixed(2)}
+                        Disponível: R$ {calculateAvailableBudget(item).toFixed(2)}
                       </Text>
                     </View>
                   </View>

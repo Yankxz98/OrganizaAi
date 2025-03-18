@@ -46,50 +46,31 @@ export default function TravelForm() {
   };
 
   const handleSave = async () => {
+    if (!travel.name || !travel.startDate || !travel.endDate || !travel.budget.total) {
+      Alert.alert('Erro', 'Por favor, preencha todos os campos obrigatórios');
+      return;
+    }
+
     try {
-      if (!travel.name) {
-        Alert.alert('Erro', 'Por favor, insira um nome para a viagem');
-        return;
+      // Garantir que os campos obrigatórios estejam presentes
+      if (!travel.budget.planned) {
+        travel.budget.planned = [];
       }
-
-      if (travel.budget.total <= 0) {
-        Alert.alert('Erro', 'O orçamento total deve ser maior que zero');
-        return;
+      
+      if (!travel.expenses) {
+        travel.expenses = [];
       }
-
-      // Calcular o valor disponível considerando despesas existentes
-      const totalExpenses = travel.expenses.reduce((sum, exp) => sum + exp.amount, 0);
       
-      // Calcular custos planejados (itinerário + despesas planejadas)
-      const plannedExpenses = travel.budget.planned.reduce((sum, exp) => sum + exp.amount, 0);
-      const itineraryCosts = (travel.itinerary || []).reduce(
-        (sum, activity) => sum + (activity.estimatedCost || 0), 
-        0
-      );
-      const totalPlanned = plannedExpenses + itineraryCosts;
-      
-      // O valor disponível é o orçamento total menos as despesas já realizadas
-      const discretionary = travel.budget.total - totalExpenses;
-
-      const updatedTravel = {
-        ...travel,
-        budget: {
-          ...travel.budget,
-          discretionary: discretionary
-        }
-      };
-
-      const success = await StorageService.saveTravel(updatedTravel);
-      
-      if (success) {
-        // Disparar evento para notificar que uma viagem foi atualizada imediatamente
-        triggerEvent('TRAVEL_UPDATED');
-        console.log('Viagem atualizada e evento TRAVEL_UPDATED disparado');
-        
-        router.push('/travels');
-      } else {
-        Alert.alert('Erro', 'Não foi possível salvar a viagem');
+      if (!travel.itinerary) {
+        travel.itinerary = [];
       }
+      
+      // Não precisamos mais calcular o discretionary, pois agora 
+      // isso será calculado dinamicamente quando necessário
+
+      await StorageService.saveTravel(travel);
+      triggerEvent('TRAVEL_UPDATED');
+      router.back();
     } catch (error) {
       console.error('Error saving travel:', error);
       Alert.alert('Erro', 'Ocorreu um erro ao salvar a viagem');

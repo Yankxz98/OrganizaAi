@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert, Platform, StatusBar, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert, Platform, StatusBar, Animated, Keyboard, KeyboardAvoidingView, TouchableWithoutFeedback } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme/ThemeContext';
 import { Travel, TravelExpense as BaseTravelExpense, TravelActivity, StorageService } from '../../utils/storage';
@@ -37,11 +37,38 @@ export default function TravelDetails() {
   const animatedHeight = useRef(new Animated.Value(0)).current;
   
   useEffect(() => {
-    Animated.timing(animatedHeight, {
-      toValue: isFinancialReportOpen ? 1 : 0,
-      duration: 300,
-      useNativeDriver: false,
-    }).start();
+    // Se o teclado estiver aberto, não abrir o relatório
+    if (isFinancialReportOpen) {
+      Animated.timing(animatedHeight, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: false,
+      }).start();
+    } else {
+      Animated.timing(animatedHeight, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: false,
+      }).start();
+    }
+  }, [isFinancialReportOpen]);
+
+  // Adicionar hook para esconder o relatório quando o teclado aparece
+  useEffect(() => {
+    const keyboardWillShowListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => {
+        console.log('Teclado apareceu, relatório financeiro aberto:', isFinancialReportOpen);
+        if (isFinancialReportOpen) {
+          console.log('Fechando relatório financeiro devido ao teclado');
+          setIsFinancialReportOpen(false);
+        }
+      }
+    );
+    
+    return () => {
+      keyboardWillShowListener.remove();
+    };
   }, [isFinancialReportOpen]);
 
   useEffect(() => {
@@ -568,6 +595,29 @@ export default function TravelDetails() {
     handleUpdatePlannedExpense();
   };
 
+  // Manipulador para o botão do relatório financeiro
+  const toggleFinancialReport = () => {
+    console.log('Botão do relatório financeiro pressionado');
+    // Sempre fechar o teclado antes de alternar o relatório
+    Keyboard.dismiss();
+    // Pequeno atraso para garantir que o teclado tenha tempo de ser fechado
+    setTimeout(() => {
+      setIsFinancialReportOpen(prev => !prev);
+    }, 100);
+  };
+
+  // Log para depuração
+  useEffect(() => {
+    if (travel) {
+      console.log('Valores do orçamento:');
+      console.log('- Total:', travel.budget.total);
+      console.log('- Total planejado:', calculateTotalEstimatedCosts());
+      console.log('- Total gasto:', travel.expenses.reduce((sum, exp) => sum + exp.amount, 0));
+      console.log('- Saldo restante:', calculateRemainingBudget());
+      console.log('- Livre para gastar:', calculateDiscretionaryRemaining());
+    }
+  }, [travel]);
+
   if (!travel) {
     return (
       <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.card }]}>
@@ -580,174 +630,367 @@ export default function TravelDetails() {
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.card }]} edges={['top', 'right', 'left']}>
       <StatusBar translucent backgroundColor={colors.card} barStyle={theme === 'dark' ? 'light-content' : 'dark-content'} />
-      <View style={[styles.container, { backgroundColor: colors.background, paddingTop: 0 }]}>
-        <View style={[styles.header, { backgroundColor: colors.card, elevation: 0, shadowOpacity: 0 }]}>
-          <Pressable onPress={() => router.back()} style={styles.backButton}>
-            <ArrowLeft size={24} color={colors.text.primary} />
-          </Pressable>
-          <View style={styles.headerContent}>
-            <Text style={[styles.title, { color: colors.text.primary }]}>{travel.name}</Text>
-            <Text style={[styles.dates, { color: colors.text.secondary }]}>
-              {new Date(travel.startDate).toLocaleDateString()} - {new Date(travel.endDate).toLocaleDateString()}
-            </Text>
-          </View>
-          <Pressable onPress={() => router.push({
-            pathname: '/travel/[id]',
-            params: { id: travel.id }
-          })} style={styles.headerEditButton}>
-            <Edit2 size={24} color={colors.primary} />
-          </Pressable>
-        </View>
-
-        <View style={[styles.contentContainer, { backgroundColor: colors.background, borderTopLeftRadius: 16, borderTopRightRadius: 16, marginTop: -8 }]}>
-          <View style={styles.tabsContainer}>
-            <Pressable 
-              style={[
-                styles.tabButton, 
-                activeTab === 'expenses' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }
-              ]}
-              onPress={() => setActiveTab('expenses')}
-            >
-              <Text style={[
-                styles.tabText, 
-                { color: activeTab === 'expenses' ? colors.primary : colors.text.secondary }
-              ]}>
-                Despesas
-              </Text>
+      <KeyboardAvoidingView 
+        style={{ flex: 1 }} 
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      >
+        <View style={[styles.container, { backgroundColor: colors.background, paddingTop: 0 }]}>
+          <View style={[styles.header, { backgroundColor: colors.card, elevation: 0, shadowOpacity: 0 }]}>
+            <Pressable onPress={() => router.back()} style={styles.backButton}>
+              <ArrowLeft size={24} color={colors.text.primary} />
             </Pressable>
-            <Pressable 
-              style={[
-                styles.tabButton, 
-                activeTab === 'itinerary' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }
-              ]}
-              onPress={() => setActiveTab('itinerary')}
-            >
-              <Text style={[
-                styles.tabText, 
-                { color: activeTab === 'itinerary' ? colors.primary : colors.text.secondary }
-              ]}>
-                Itinerário
-              </Text>
-            </Pressable>
-          </View>
-
-          <Pressable 
-            style={[
-              styles.financialReportButton, 
-              { 
-                backgroundColor: colors.card,
-                borderBottomLeftRadius: isFinancialReportOpen ? 0 : 8,
-                borderBottomRightRadius: isFinancialReportOpen ? 0 : 8,
-                borderBottomWidth: isFinancialReportOpen ? 0 : 1,
-                borderBottomColor: isFinancialReportOpen ? 'transparent' : '#e0e0e0',
-              }
-            ]} 
-            onPress={() => setIsFinancialReportOpen(!isFinancialReportOpen)}
-          >
-            <View style={styles.financialReportTitleContainer}>
-              <DollarSign size={16} color={colors.primary} style={{ marginRight: 6 }} />
-              <Text style={[styles.financialReportButtonText, { color: colors.text.primary }]}>
-                Relatório Financeiro
+            <View style={styles.headerContent}>
+              <Text style={[styles.title, { color: colors.text.primary }]}>{travel.name}</Text>
+              <Text style={[styles.dates, { color: colors.text.secondary }]}>
+                {new Date(travel.startDate).toLocaleDateString()} - {new Date(travel.endDate).toLocaleDateString()}
               </Text>
             </View>
-            <Text style={[styles.financialReportButtonText, { color: colors.primary }]}>
-              {isFinancialReportOpen ? '▲' : '▼'}
-            </Text>
-          </Pressable>
+            <Pressable onPress={() => router.push({
+              pathname: '/travel/[id]',
+              params: { id: travel.id }
+            })} style={styles.headerEditButton}>
+              <Edit2 size={24} color={colors.primary} />
+            </Pressable>
+          </View>
 
-          <Animated.View 
-            style={[
-              styles.financialReportContainer, 
-              { 
-                backgroundColor: colors.card,
-                maxHeight: animatedHeight.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0, 300]
-                }),
-                opacity: animatedHeight,
-                overflow: 'hidden',
-                borderWidth: animatedHeight.interpolate({
-                  inputRange: [0, 0.01, 1],
-                  outputRange: [0, 1, 1]
-                }),
-                borderColor: '#e0e0e0',
-                borderTopWidth: 0,
-              }
-            ]}
-          >
-            <ScrollView 
-              style={{ maxHeight: 300 }}
-              showsVerticalScrollIndicator={true}
-              nestedScrollEnabled={true}
+          <View style={[styles.contentContainer, { backgroundColor: colors.background, borderTopLeftRadius: 16, borderTopRightRadius: 16, marginTop: -8 }]}>
+            <View style={styles.tabsContainer}>
+              <Pressable 
+                style={[
+                  styles.tabButton, 
+                  activeTab === 'expenses' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }
+                ]}
+                onPress={() => setActiveTab('expenses')}
+              >
+                <Text style={[
+                  styles.tabText, 
+                  { color: activeTab === 'expenses' ? colors.primary : colors.text.secondary }
+                ]}>
+                  Despesas
+                </Text>
+              </Pressable>
+              <Pressable 
+                style={[
+                  styles.tabButton, 
+                  activeTab === 'itinerary' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }
+                ]}
+                onPress={() => setActiveTab('itinerary')}
+              >
+                <Text style={[
+                  styles.tabText, 
+                  { color: activeTab === 'itinerary' ? colors.primary : colors.text.secondary }
+                ]}>
+                  Itinerário
+                </Text>
+              </Pressable>
+            </View>
+
+            <Pressable 
+              style={[
+                styles.financialReportButton, 
+                { 
+                  backgroundColor: colors.card,
+                  borderBottomLeftRadius: isFinancialReportOpen ? 0 : 8,
+                  borderBottomRightRadius: isFinancialReportOpen ? 0 : 8,
+                  borderBottomWidth: isFinancialReportOpen ? 0 : 1,
+                  borderBottomColor: isFinancialReportOpen ? 'transparent' : '#e0e0e0',
+                }
+              ]} 
+              onPress={toggleFinancialReport}
             >
-              {/* Seção de Orçamento */}
-              <View style={styles.reportSection}>
-                <Text style={[styles.reportSectionTitle, { color: colors.text.secondary }]}>
-                  Orçamento
+              <View style={styles.financialReportTitleContainer}>
+                <DollarSign size={16} color={colors.primary} style={{ marginRight: 6 }} />
+                <Text style={[styles.financialReportButtonText, { color: colors.text.primary }]}>
+                  Relatório Financeiro
                 </Text>
-                
-                <View style={[styles.budgetItem, { backgroundColor: 'rgba(14, 165, 233, 0.1)', padding: 8, borderRadius: 6 }]}>
-                  <View style={styles.budgetLabelContainer}>
-                    <Wallet size={14} color={colors.primary} style={{ marginRight: 4 }} />
-                    <Text style={[styles.budgetLabel, { color: colors.text.primary }]}>Total</Text>
-                  </View>
-                  <Text style={[styles.budgetValue, { color: colors.primary, fontWeight: 'bold' }]}>
-                    R$ {travel.budget.total.toFixed(2)}
-                  </Text>
-                </View>
               </View>
+              <Text style={[styles.financialReportButtonText, { color: colors.primary }]}>
+                {isFinancialReportOpen ? '▲' : '▼'}
+              </Text>
+            </Pressable>
 
-              <View style={styles.budgetDivider} />
-
-              {/* Seção de Despesas Planejadas */}
-              <View style={styles.reportSection}>
-                <Text style={[styles.reportSectionTitle, { color: colors.text.secondary }]}>
-                  Despesas Planejadas
-                </Text>
-                
-                <View style={styles.budgetItem}>
-                  <View style={styles.budgetLabelContainer}>
-                    <Briefcase size={14} color={colors.text.secondary} style={{ marginRight: 4 }} />
-                    <Text style={[styles.budgetLabel, { color: colors.text.secondary }]}>Custos do Itinerário</Text>
-                  </View>
-                  <Text style={[styles.budgetValue, { color: colors.text.primary }]}>
-                    R$ {calculateItineraryCosts().toFixed(2)}
+            <Animated.View 
+              style={[
+                styles.financialReportContainer, 
+                { 
+                  backgroundColor: colors.card,
+                  maxHeight: animatedHeight.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0, 300]
+                  }),
+                  opacity: animatedHeight,
+                  overflow: 'hidden',
+                  borderWidth: animatedHeight.interpolate({
+                    inputRange: [0, 0.01, 1],
+                    outputRange: [0, 1, 1]
+                  }),
+                  borderColor: '#e0e0e0',
+                  borderTopWidth: 0,
+                }
+              ]}
+            >
+              <ScrollView 
+                style={{ maxHeight: 300 }}
+                showsVerticalScrollIndicator={true}
+                nestedScrollEnabled={true}
+              >
+                {/* Seção de Orçamento */}
+                <View style={styles.reportSection}>
+                  <Text style={[styles.reportSectionTitle, { color: colors.text.secondary }]}>
+                    Orçamento
                   </Text>
+                  
+                  <View style={[styles.budgetItem, { backgroundColor: 'rgba(14, 165, 233, 0.1)', padding: 8, borderRadius: 6 }]}>
+                    <View style={styles.budgetLabelContainer}>
+                      <Wallet size={14} color={colors.primary} style={{ marginRight: 4 }} />
+                      <Text style={[styles.budgetLabel, { color: colors.text.primary }]}>Total</Text>
+                    </View>
+                    <Text style={[styles.budgetValue, { color: colors.primary, fontWeight: 'bold' }]}>
+                      R$ {travel.budget.total.toFixed(2)}
+                    </Text>
+                  </View>
                 </View>
 
-                <View style={styles.budgetItem}>
-                  <View style={styles.budgetLabelContainer}>
-                    <CreditCard size={14} color={colors.text.secondary} style={{ marginRight: 4 }} />
-                    <Text style={[styles.budgetLabel, { color: colors.text.secondary }]}>Outras Despesas Planejadas</Text>
-                  </View>
-                  <Text style={[styles.budgetValue, { color: colors.text.primary }]}>
-                    R$ {calculatePlannedExpenses().toFixed(2)}
+                <View style={styles.budgetDivider} />
+
+                {/* Seção de Despesas Planejadas */}
+                <View style={styles.reportSection}>
+                  <Text style={[styles.reportSectionTitle, { color: colors.text.secondary }]}>
+                    Despesas Planejadas
                   </Text>
+                  
+                  <View style={styles.budgetItem}>
+                    <View style={styles.budgetLabelContainer}>
+                      <Briefcase size={14} color={colors.text.secondary} style={{ marginRight: 4 }} />
+                      <Text style={[styles.budgetLabel, { color: colors.text.secondary }]}>Custos do Itinerário</Text>
+                    </View>
+                    <Text style={[styles.budgetValue, { color: colors.text.primary }]}>
+                      R$ {calculateItineraryCosts().toFixed(2)}
+                    </Text>
+                  </View>
+
+                  <View style={styles.budgetItem}>
+                    <View style={styles.budgetLabelContainer}>
+                      <CreditCard size={14} color={colors.text.secondary} style={{ marginRight: 4 }} />
+                      <Text style={[styles.budgetLabel, { color: colors.text.secondary }]}>Outras Despesas Planejadas</Text>
+                    </View>
+                    <Text style={[styles.budgetValue, { color: colors.text.primary }]}>
+                      R$ {calculatePlannedExpenses().toFixed(2)}
+                    </Text>
+                  </View>
+
+                  <View style={[styles.budgetItem, { backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: 8, borderRadius: 6, marginTop: 4 }]}>
+                    <View style={styles.budgetLabelContainer}>
+                      <DollarSign size={14} color={colors.danger} style={{ marginRight: 4 }} />
+                      <Text style={[styles.budgetLabel, { color: colors.danger, fontWeight: 'bold' }]}>Total Planejado</Text>
+                    </View>
+                    <Text style={[styles.budgetValue, { color: colors.danger, fontWeight: 'bold' }]}>
+                      R$ {calculateTotalEstimatedCosts().toFixed(2)}
+                    </Text>
+                  </View>
                 </View>
 
-                <View style={[styles.budgetItem, { backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: 8, borderRadius: 6, marginTop: 4 }]}>
-                  <View style={styles.budgetLabelContainer}>
-                    <DollarSign size={14} color={colors.danger} style={{ marginRight: 4 }} />
-                    <Text style={[styles.budgetLabel, { color: colors.danger, fontWeight: 'bold' }]}>Total Planejado</Text>
-                  </View>
-                  <Text style={[styles.budgetValue, { color: colors.danger, fontWeight: 'bold' }]}>
-                    R$ {calculateTotalEstimatedCosts().toFixed(2)}
+                <View style={styles.budgetDivider} />
+
+                {/* Seção de Despesas Reais */}
+                <View style={styles.reportSection}>
+                  <Text style={[styles.reportSectionTitle, { color: colors.text.secondary }]}>
+                    Despesas Reais
                   </Text>
+                  
+                  {travel.expenses.length > 0 ? (
+                    <>
+                      {/* Lista de despesas reais */}
+                      <ScrollView style={{ maxHeight: 80 }} nestedScrollEnabled={true}>
+                        {travel.expenses.map(expense => (
+                          <View key={expense.id} style={[styles.expenseItem, { backgroundColor: colors.card }]}>
+                            <View style={styles.expenseInfo}>
+                              <Text style={[styles.expenseDescription, { color: colors.text.primary }]}>
+                                {expense.description}
+                              </Text>
+                              <Text style={[styles.expenseDate, { color: colors.text.secondary }]}>
+                                {new Date(expense.date).toLocaleDateString()}
+                              </Text>
+                            </View>
+                            <View style={styles.expenseActions}>
+                              <Text style={[styles.expenseAmount, { color: colors.text.primary, marginRight: 10 }]}>
+                                R$ {expense.amount.toFixed(2)}
+                              </Text>
+                              <Pressable
+                                onPress={() => handleEditExpense(expense)}
+                                style={[styles.actionIconButton, { marginRight: 6 }]}
+                              >
+                                <Edit2 size={16} color={colors.primary} />
+                              </Pressable>
+                              <Pressable
+                                onPress={() => handleDeleteExpense(expense.id)}
+                                style={styles.actionIconButton}
+                              >
+                                <Trash2 size={16} color={colors.danger} />
+                              </Pressable>
+                            </View>
+                          </View>
+                        ))}
+                      </ScrollView>
+                      
+                      {/* Total de despesas reais */}
+                      <View style={[styles.budgetItem, { backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: 8, borderRadius: 6, marginTop: 8 }]}>
+                        <View style={styles.budgetLabelContainer}>
+                          <CreditCard size={14} color={colors.danger} style={{ marginRight: 4 }} />
+                          <Text style={[styles.budgetLabel, { color: colors.text.primary, fontWeight: 'bold' }]}>Total Gasto</Text>
+                        </View>
+                        <Text style={[styles.budgetValue, { color: colors.danger, fontWeight: 'bold' }]}>
+                          R$ {travel.expenses.reduce((sum, exp) => sum + exp.amount, 0).toFixed(2)}
+                        </Text>
+                      </View>
+                    </>
+                  ) : (
+                    <View style={[styles.budgetItem, { backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: 8, borderRadius: 6 }]}>
+                      <View style={styles.budgetLabelContainer}>
+                        <CreditCard size={14} color={colors.danger} style={{ marginRight: 4 }} />
+                        <Text style={[styles.budgetLabel, { color: colors.text.primary, fontWeight: 'bold' }]}>Total Gasto</Text>
+                      </View>
+                      <Text style={[styles.budgetValue, { color: colors.danger, fontWeight: 'bold' }]}>
+                        R$ {travel.expenses.reduce((sum, exp) => sum + exp.amount, 0).toFixed(2)}
+                      </Text>
+                    </View>
+                  )}
                 </View>
-              </View>
 
-              <View style={styles.budgetDivider} />
+                <View style={styles.budgetDivider} />
 
-              {/* Seção de Despesas Reais */}
-              <View style={styles.reportSection}>
-                <Text style={[styles.reportSectionTitle, { color: colors.text.secondary }]}>
-                  Despesas Reais
-                </Text>
-                
-                {travel.expenses.length > 0 ? (
-                  <>
-                    {/* Lista de despesas reais */}
-                    <ScrollView style={{ maxHeight: 80 }} nestedScrollEnabled={true}>
+                {/* Seção de Saldo */}
+                <View style={styles.reportSection}>
+                  <Text style={[styles.reportSectionTitle, { color: colors.text.secondary }]}>
+                    Saldo
+                  </Text>
+                  
+                  {/* Porcentagem do orçamento gasta */}
+                  <View style={[styles.budgetItem, { marginBottom: 4 }]}>
+                    <View style={styles.budgetLabelContainer}>
+                      <CreditCard size={14} color={colors.text.secondary} style={{ marginRight: 4 }} />
+                      <Text style={[styles.budgetLabel, { color: colors.text.secondary }]}>Porcentagem Gasta</Text>
+                    </View>
+                    <Text style={[styles.budgetValue, { 
+                      color: calculatePercentageSpent() > 80
+                        ? colors.danger 
+                        : calculatePercentageSpent() > 50
+                          ? colors.warning
+                          : colors.success
+                    }]}>
+                      {`${calculatePercentageSpent()}%`}
+                    </Text>
+                  </View>
+                  
+                  {/* Barra de progresso */}
+                  <View style={{ height: 8, backgroundColor: 'rgba(0,0,0,0.1)', borderRadius: 4, marginBottom: 12 }}>
+                    <View 
+                      style={{ 
+                        height: '100%', 
+                        width: `${Math.min(calculatePercentageSpent(), 100)}%`, 
+                        backgroundColor: calculatePercentageSpent() > 80
+                          ? colors.danger 
+                          : calculatePercentageSpent() > 50
+                            ? colors.warning
+                            : colors.success,
+                        borderRadius: 4
+                      }} 
+                    />
+                  </View>
+
+                  <View style={[
+                    styles.budgetItem, 
+                    { 
+                      backgroundColor: calculateRemainingBudget() >= 0 ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)', 
+                      padding: 8, 
+                      borderRadius: 6,
+                      marginBottom: 8
+                    }
+                  ]}>
+                    <View style={styles.budgetLabelContainer}>
+                      <TrendingDown 
+                        size={14} 
+                        color={calculateRemainingBudget() >= 0 ? colors.success : colors.danger} 
+                        style={{ marginRight: 4 }} 
+                      />
+                      <Text style={[styles.budgetLabel, { color: colors.text.primary, fontWeight: 'bold' }]}>Saldo Restante</Text>
+                    </View>
+                    <Text style={[styles.budgetValue, { 
+                      color: calculateRemainingBudget() >= 0 ? colors.success : colors.danger,
+                      fontWeight: 'bold'
+                    }]}>
+                      R$ {calculateRemainingBudget().toFixed(2)}
+                    </Text>
+                  </View>
+
+                  <View style={[
+                    styles.budgetItem,
+                    { 
+                      backgroundColor: calculateDiscretionaryRemaining() >= 0 ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)', 
+                      padding: 8, 
+                      borderRadius: 6 
+                    }
+                  ]}>
+                    <View style={styles.budgetLabelContainer}>
+                      <TrendingUp 
+                        size={14} 
+                        color={calculateDiscretionaryRemaining() >= 0 ? colors.success : colors.danger} 
+                        style={{ marginRight: 4 }} 
+                      />
+                      <Text style={[styles.budgetLabel, { color: colors.text.primary, fontWeight: 'bold' }]}>Livre para Gastar</Text>
+                    </View>
+                    <Text style={[styles.budgetValue, { 
+                      color: calculateDiscretionaryRemaining() >= 0 ? colors.success : colors.danger,
+                      fontWeight: 'bold'
+                    }]}>
+                      R$ {calculateDiscretionaryRemaining().toFixed(2)}
+                    </Text>
+                  </View>
+                </View>
+              </ScrollView>
+            </Animated.View>
+
+            <View style={{ height: 8 }} />
+
+            {activeTab === 'expenses' ? (
+              <ScrollView style={styles.content}>
+                <View style={styles.expensesContainer}>
+                  <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>Gastos da Viagem</Text>
+                  
+                  <View style={styles.expenseTypeContainer}>
+                    <Pressable 
+                      style={[
+                        styles.expenseTypeButton, 
+                        expenseType === 'real' && { backgroundColor: colors.primary }
+                      ]}
+                      onPress={() => setExpenseType('real')}
+                    >
+                      <Text style={[
+                        styles.expenseTypeText, 
+                        { color: expenseType === 'real' ? '#fff' : colors.text.secondary }
+                      ]}>
+                        Despesas Reais
+                      </Text>
+                    </Pressable>
+                    <Pressable 
+                      style={[
+                        styles.expenseTypeButton, 
+                        expenseType === 'planned' && { backgroundColor: colors.primary }
+                      ]}
+                      onPress={() => setExpenseType('planned')}
+                    >
+                      <Text style={[
+                        styles.expenseTypeText, 
+                        { color: expenseType === 'planned' ? '#fff' : colors.text.secondary }
+                      ]}>
+                        Despesas Planejadas
+                      </Text>
+                    </Pressable>
+                  </View>
+                  
+                  {expenseType === 'real' ? (
+                    <>
                       {travel.expenses.map(expense => (
                         <View key={expense.id} style={[styles.expenseItem, { backgroundColor: colors.card }]}>
                           <View style={styles.expenseInfo}>
@@ -777,378 +1020,205 @@ export default function TravelDetails() {
                           </View>
                         </View>
                       ))}
-                    </ScrollView>
-                    
-                    {/* Total de despesas reais */}
-                    <View style={[styles.budgetItem, { backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: 8, borderRadius: 6, marginTop: 8 }]}>
-                      <View style={styles.budgetLabelContainer}>
-                        <CreditCard size={14} color={colors.danger} style={{ marginRight: 4 }} />
-                        <Text style={[styles.budgetLabel, { color: colors.text.primary, fontWeight: 'bold' }]}>Total Gasto</Text>
-                      </View>
-                      <Text style={[styles.budgetValue, { color: colors.danger, fontWeight: 'bold' }]}>
-                        R$ {travel.expenses.reduce((sum, exp) => sum + exp.amount, 0).toFixed(2)}
-                      </Text>
-                    </View>
-                  </>
-                ) : (
-                  <View style={[styles.budgetItem, { backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: 8, borderRadius: 6 }]}>
-                    <View style={styles.budgetLabelContainer}>
-                      <CreditCard size={14} color={colors.danger} style={{ marginRight: 4 }} />
-                      <Text style={[styles.budgetLabel, { color: colors.text.primary, fontWeight: 'bold' }]}>Total Gasto</Text>
-                    </View>
-                    <Text style={[styles.budgetValue, { color: colors.danger, fontWeight: 'bold' }]}>
-                      R$ {travel.expenses.reduce((sum, exp) => sum + exp.amount, 0).toFixed(2)}
-                    </Text>
-                  </View>
-                )}
-              </View>
 
-              <View style={styles.budgetDivider} />
-
-              {/* Seção de Saldo */}
-              <View style={styles.reportSection}>
-                <Text style={[styles.reportSectionTitle, { color: colors.text.secondary }]}>
-                  Saldo
-                </Text>
-                
-                {/* Porcentagem do orçamento gasta */}
-                <View style={[styles.budgetItem, { marginBottom: 4 }]}>
-                  <View style={styles.budgetLabelContainer}>
-                    <CreditCard size={14} color={colors.text.secondary} style={{ marginRight: 4 }} />
-                    <Text style={[styles.budgetLabel, { color: colors.text.secondary }]}>Porcentagem Gasta</Text>
-                  </View>
-                  <Text style={[styles.budgetValue, { 
-                    color: calculatePercentageSpent() > 80
-                      ? colors.danger 
-                      : calculatePercentageSpent() > 50
-                        ? colors.warning
-                        : colors.success
-                  }]}>
-                    {`${calculatePercentageSpent()}%`}
-                  </Text>
-                </View>
-                
-                {/* Barra de progresso */}
-                <View style={{ height: 8, backgroundColor: 'rgba(0,0,0,0.1)', borderRadius: 4, marginBottom: 12 }}>
-                  <View 
-                    style={{ 
-                      height: '100%', 
-                      width: `${Math.min(calculatePercentageSpent(), 100)}%`, 
-                      backgroundColor: calculatePercentageSpent() > 80
-                        ? colors.danger 
-                        : calculatePercentageSpent() > 50
-                          ? colors.warning
-                          : colors.success,
-                      borderRadius: 4
-                    }} 
-                  />
-                </View>
-
-                <View style={[
-                  styles.budgetItem, 
-                  { 
-                    backgroundColor: calculateRemainingBudget() >= 0 ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)', 
-                    padding: 8, 
-                    borderRadius: 6,
-                    marginBottom: 8
-                  }
-                ]}>
-                  <View style={styles.budgetLabelContainer}>
-                    <TrendingDown 
-                      size={14} 
-                      color={calculateRemainingBudget() >= 0 ? colors.success : colors.danger} 
-                      style={{ marginRight: 4 }} 
-                    />
-                    <Text style={[styles.budgetLabel, { color: colors.text.primary, fontWeight: 'bold' }]}>Saldo Restante</Text>
-                  </View>
-                  <Text style={[styles.budgetValue, { 
-                    color: calculateRemainingBudget() >= 0 ? colors.success : colors.danger,
-                    fontWeight: 'bold'
-                  }]}>
-                    R$ {calculateRemainingBudget().toFixed(2)}
-                  </Text>
-                </View>
-
-                <View style={[
-                  styles.budgetItem,
-                  { 
-                    backgroundColor: calculateDiscretionaryRemaining() >= 0 ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)', 
-                    padding: 8, 
-                    borderRadius: 6 
-                  }
-                ]}>
-                  <View style={styles.budgetLabelContainer}>
-                    <TrendingUp 
-                      size={14} 
-                      color={calculateDiscretionaryRemaining() >= 0 ? colors.success : colors.danger} 
-                      style={{ marginRight: 4 }} 
-                    />
-                    <Text style={[styles.budgetLabel, { color: colors.text.primary, fontWeight: 'bold' }]}>Livre para Gastar</Text>
-                  </View>
-                  <Text style={[styles.budgetValue, { 
-                    color: calculateDiscretionaryRemaining() >= 0 ? colors.success : colors.danger,
-                    fontWeight: 'bold'
-                  }]}>
-                    R$ {calculateDiscretionaryRemaining().toFixed(2)}
-                  </Text>
-                </View>
-              </View>
-            </ScrollView>
-          </Animated.View>
-
-          <View style={{ height: 8 }} />
-
-          {activeTab === 'expenses' ? (
-            <ScrollView style={styles.content}>
-              <View style={styles.expensesContainer}>
-                <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>Gastos da Viagem</Text>
-                
-                <View style={styles.expenseTypeContainer}>
-                  <Pressable 
-                    style={[
-                      styles.expenseTypeButton, 
-                      expenseType === 'real' && { backgroundColor: colors.primary }
-                    ]}
-                    onPress={() => setExpenseType('real')}
-                  >
-                    <Text style={[
-                      styles.expenseTypeText, 
-                      { color: expenseType === 'real' ? '#fff' : colors.text.secondary }
-                    ]}>
-                      Despesas Reais
-                    </Text>
-                  </Pressable>
-                  <Pressable 
-                    style={[
-                      styles.expenseTypeButton, 
-                      expenseType === 'planned' && { backgroundColor: colors.primary }
-                    ]}
-                    onPress={() => setExpenseType('planned')}
-                  >
-                    <Text style={[
-                      styles.expenseTypeText, 
-                      { color: expenseType === 'planned' ? '#fff' : colors.text.secondary }
-                    ]}>
-                      Despesas Planejadas
-                    </Text>
-                  </Pressable>
-                </View>
-                
-                {expenseType === 'real' ? (
-                  <>
-                    {travel.expenses.map(expense => (
-                      <View key={expense.id} style={[styles.expenseItem, { backgroundColor: colors.card }]}>
-                        <View style={styles.expenseInfo}>
-                          <Text style={[styles.expenseDescription, { color: colors.text.primary }]}>
-                            {expense.description}
-                          </Text>
-                          <Text style={[styles.expenseDate, { color: colors.text.secondary }]}>
-                            {new Date(expense.date).toLocaleDateString()}
-                          </Text>
-                        </View>
-                        <View style={styles.expenseActions}>
-                          <Text style={[styles.expenseAmount, { color: colors.text.primary, marginRight: 10 }]}>
-                            R$ {expense.amount.toFixed(2)}
-                          </Text>
-                          <Pressable
-                            onPress={() => handleEditExpense(expense)}
-                            style={[styles.actionIconButton, { marginRight: 6 }]}
-                          >
-                            <Edit2 size={16} color={colors.primary} />
-                          </Pressable>
-                          <Pressable
-                            onPress={() => handleDeleteExpense(expense.id)}
-                            style={styles.actionIconButton}
-                          >
-                            <Trash2 size={16} color={colors.danger} />
-                          </Pressable>
-                        </View>
-                      </View>
-                    ))}
-
-                    <View style={[styles.addExpenseForm, { backgroundColor: colors.card }]}>
-                      <TextInput
-                        style={[styles.expenseInput, { color: colors.text.primary }]}
-                        value={newExpense.description}
-                        onChangeText={description => setNewExpense(prev => ({ ...prev, description }))}
-                        placeholder="Descrição"
-                        placeholderTextColor={colors.text.secondary}
-                      />
-                      <TextInput
-                        style={[styles.expenseInput, { color: colors.text.primary }]}
-                        value={newExpense.amount?.toString()}
-                        onChangeText={amount => setNewExpense(prev => ({ ...prev, amount: Number(amount) || 0 }))}
-                        keyboardType="numeric"
-                        placeholder="Valor"
-                        placeholderTextColor={colors.text.secondary}
-                      />
-                      {editingExpense ? (
-                        <View style={styles.editButtonsContainer}>
+                      <View style={[styles.addExpenseForm, { backgroundColor: colors.card }]}>
+                        <TextInput
+                          style={[styles.expenseInput, { color: colors.text.primary }]}
+                          value={newExpense.description}
+                          onChangeText={description => setNewExpense(prev => ({ ...prev, description }))}
+                          placeholder="Descrição"
+                          placeholderTextColor={colors.text.secondary}
+                        />
+                        <TextInput
+                          style={[styles.expenseInput, { color: colors.text.primary }]}
+                          value={newExpense.amount?.toString()}
+                          onChangeText={amount => setNewExpense(prev => ({ ...prev, amount: Number(amount) || 0 }))}
+                          keyboardType="numeric"
+                          placeholder="Valor"
+                          placeholderTextColor={colors.text.secondary}
+                        />
+                        {editingExpense ? (
+                          <View style={styles.editButtonsContainer}>
+                            <Pressable
+                              onPress={() => {
+                                Keyboard.dismiss();
+                                setEditingExpense(null);
+                                setNewExpense({
+                                  category: 'other',
+                                  description: '',
+                                  amount: 0
+                                });
+                              }}
+                              style={[styles.editButtonStyle, { backgroundColor: colors.danger }]}
+                            >
+                              <X size={16} color="#fff" />
+                            </Pressable>
+                            <Pressable
+                              onPress={() => {
+                                Keyboard.dismiss();
+                                handleUpdateExpense();
+                              }}
+                              style={[styles.editButtonStyle, { backgroundColor: colors.success }]}
+                            >
+                              <Check size={16} color="#fff" />
+                            </Pressable>
+                          </View>
+                        ) : (
                           <Pressable
                             onPress={() => {
-                              setEditingExpense(null);
-                              setNewExpense({
-                                category: 'other',
-                                description: '',
-                                amount: 0
-                              });
+                              Keyboard.dismiss();
+                              handleAddExpense();
                             }}
-                            style={[styles.editButtonStyle, { backgroundColor: colors.danger }]}
+                            style={[styles.addButton, { backgroundColor: colors.primary }]}
                           >
-                            <X size={16} color="#fff" />
+                            <Plus size={20} color="#fff" />
                           </Pressable>
-                          <Pressable
-                            onPress={handleUpdateExpense}
-                            style={[styles.editButtonStyle, { backgroundColor: colors.success }]}
-                          >
-                            <Check size={16} color="#fff" />
-                          </Pressable>
-                        </View>
-                      ) : (
-                        <Pressable
-                          onPress={handleAddExpense}
-                          style={[styles.addButton, { backgroundColor: colors.primary }]}
-                        >
-                          <Plus size={20} color="#fff" />
-                        </Pressable>
-                      )}
-                    </View>
-                  </>
-                ) : (
-                  <>
-                    {/* Listar despesas planejadas do orçamento */}
-                    {travel.budget.planned.map(expense => (
-                      <View key={expense.id} style={[styles.expenseItem, { backgroundColor: colors.card }]}>
-                        <View style={styles.expenseInfo}>
-                          <Text style={[styles.expenseDescription, { color: colors.text.primary }]}>
-                            {expense.description}
-                          </Text>
-                          <Text style={[styles.expenseDate, { color: colors.text.secondary }]}>
-                            {expense.category}
-                          </Text>
-                        </View>
-                        <View style={styles.expenseActions}>
-                          <Text style={[styles.expenseAmount, { color: colors.text.primary, marginRight: 10 }]}>
-                            R$ {expense.amount.toFixed(2)}
-                          </Text>
-                          <Pressable
-                            onPress={() => handleEditPlannedExpense(expense)}
-                            style={[styles.actionIconButton, { marginRight: 6 }]}
-                          >
-                            <Edit2 size={16} color={colors.primary} />
-                          </Pressable>
-                          <Pressable
-                            onPress={() => handleDeletePlannedExpense(expense.id)}
-                            style={styles.actionIconButton}
-                          >
-                            <Trash2 size={16} color={colors.danger} />
-                          </Pressable>
-                        </View>
+                        )}
                       </View>
-                    ))}
-
-                    {/* Listar custos estimados das atividades do itinerário */}
-                    {travel.itinerary && travel.itinerary
-                      .filter(activity => activity.estimatedCost !== undefined && activity.estimatedCost > 0)
-                      .map(activity => (
-                        <View key={`activity-${activity.id}`} style={[styles.expenseItem, { backgroundColor: colors.card }]}>
+                    </>
+                  ) : (
+                    <>
+                      {/* Listar despesas planejadas do orçamento */}
+                      {travel.budget.planned.map(expense => (
+                        <View key={expense.id} style={[styles.expenseItem, { backgroundColor: colors.card }]}>
                           <View style={styles.expenseInfo}>
-                            <View style={styles.expenseTitleContainer}>
-                              <Calendar size={14} color={colors.primary} style={{ marginRight: 6 }} />
-                              <Text style={[styles.expenseDescription, { color: colors.text.primary }]}>
-                                {activity.title}
-                              </Text>
-                            </View>
+                            <Text style={[styles.expenseDescription, { color: colors.text.primary }]}>
+                              {expense.description}
+                            </Text>
                             <Text style={[styles.expenseDate, { color: colors.text.secondary }]}>
-                              {activity.category} - {new Date(activity.startDateTime).toLocaleDateString()}
+                              {expense.category}
                             </Text>
                           </View>
                           <View style={styles.expenseActions}>
                             <Text style={[styles.expenseAmount, { color: colors.text.primary, marginRight: 10 }]}>
-                              R$ {(activity.estimatedCost || 0).toFixed(2)}
+                              R$ {expense.amount.toFixed(2)}
                             </Text>
                             <Pressable
-                              onPress={() => handleEditActivityCost(activity)}
+                              onPress={() => handleEditPlannedExpense(expense)}
                               style={[styles.actionIconButton, { marginRight: 6 }]}
                             >
                               <Edit2 size={16} color={colors.primary} />
                             </Pressable>
                             <Pressable
-                              onPress={() => handleDeleteActivityCost(activity.id)}
+                              onPress={() => handleDeletePlannedExpense(expense.id)}
                               style={styles.actionIconButton}
                             >
                               <Trash2 size={16} color={colors.danger} />
                             </Pressable>
                           </View>
                         </View>
-                      ))
-                    }
+                      ))}
 
-                    <View style={[styles.addExpenseForm, { backgroundColor: colors.card }]}>
-                      <TextInput
-                        style={[styles.expenseInput, { color: colors.text.primary }]}
-                        value={newPlannedExpense.description}
-                        onChangeText={description => setNewPlannedExpense(prev => ({ ...prev, description }))}
-                        placeholder="Descrição"
-                        placeholderTextColor={colors.text.secondary}
-                      />
-                      <TextInput
-                        style={[styles.expenseInput, { color: colors.text.primary }]}
-                        value={newPlannedExpense.amount?.toString()}
-                        onChangeText={amount => setNewPlannedExpense(prev => ({ ...prev, amount: Number(amount) || 0 }))}
-                        keyboardType="numeric"
-                        placeholder="Valor"
-                        placeholderTextColor={colors.text.secondary}
-                      />
-                      {editingPlannedExpense ? (
-                        <View style={styles.editButtonsContainer}>
+                      {/* Listar custos estimados das atividades do itinerário */}
+                      {travel.itinerary && travel.itinerary
+                        .filter(activity => activity.estimatedCost !== undefined && activity.estimatedCost > 0)
+                        .map(activity => (
+                          <View key={`activity-${activity.id}`} style={[styles.expenseItem, { backgroundColor: colors.card }]}>
+                            <View style={styles.expenseInfo}>
+                              <View style={styles.expenseTitleContainer}>
+                                <Calendar size={14} color={colors.primary} style={{ marginRight: 6 }} />
+                                <Text style={[styles.expenseDescription, { color: colors.text.primary }]}>
+                                  {activity.title}
+                                </Text>
+                              </View>
+                              <Text style={[styles.expenseDate, { color: colors.text.secondary }]}>
+                                {activity.category} - {new Date(activity.startDateTime).toLocaleDateString()}
+                              </Text>
+                            </View>
+                            <View style={styles.expenseActions}>
+                              <Text style={[styles.expenseAmount, { color: colors.text.primary, marginRight: 10 }]}>
+                                R$ {(activity.estimatedCost || 0).toFixed(2)}
+                              </Text>
+                              <Pressable
+                                onPress={() => handleEditActivityCost(activity)}
+                                style={[styles.actionIconButton, { marginRight: 6 }]}
+                              >
+                                <Edit2 size={16} color={colors.primary} />
+                              </Pressable>
+                              <Pressable
+                                onPress={() => handleDeleteActivityCost(activity.id)}
+                                style={styles.actionIconButton}
+                              >
+                                <Trash2 size={16} color={colors.danger} />
+                              </Pressable>
+                            </View>
+                          </View>
+                        ))
+                      }
+
+                      <View style={[styles.addExpenseForm, { backgroundColor: colors.card }]}>
+                        <TextInput
+                          style={[styles.expenseInput, { color: colors.text.primary }]}
+                          value={newPlannedExpense.description}
+                          onChangeText={description => setNewPlannedExpense(prev => ({ ...prev, description }))}
+                          placeholder="Descrição"
+                          placeholderTextColor={colors.text.secondary}
+                        />
+                        <TextInput
+                          style={[styles.expenseInput, { color: colors.text.primary }]}
+                          value={newPlannedExpense.amount?.toString()}
+                          onChangeText={amount => setNewPlannedExpense(prev => ({ ...prev, amount: Number(amount) || 0 }))}
+                          keyboardType="numeric"
+                          placeholder="Valor"
+                          placeholderTextColor={colors.text.secondary}
+                        />
+                        {editingPlannedExpense ? (
+                          <View style={styles.editButtonsContainer}>
+                            <Pressable
+                              onPress={() => {
+                                Keyboard.dismiss();
+                                setEditingPlannedExpense(null);
+                                setNewPlannedExpense({
+                                  category: 'other',
+                                  description: '',
+                                  amount: 0
+                                });
+                              }}
+                              style={[styles.editButtonStyle, { backgroundColor: colors.danger }]}
+                            >
+                              <X size={16} color="#fff" />
+                            </Pressable>
+                            <Pressable
+                              onPress={() => {
+                                Keyboard.dismiss();
+                                handleUpdateActivityCost();
+                              }}
+                              style={[styles.editButtonStyle, { backgroundColor: colors.success }]}
+                            >
+                              <Check size={16} color="#fff" />
+                            </Pressable>
+                            {editingPlannedExpense.isActivity && (
+                              <Text style={[styles.smallText, { color: colors.text.secondary, marginLeft: 8 }]}>
+                                Editando custo da atividade
+                              </Text>
+                            )}
+                          </View>
+                        ) : (
                           <Pressable
                             onPress={() => {
-                              setEditingPlannedExpense(null);
-                              setNewPlannedExpense({
-                                category: 'other',
-                                description: '',
-                                amount: 0
-                              });
+                              Keyboard.dismiss();
+                              handleAddPlannedExpense();
                             }}
-                            style={[styles.editButtonStyle, { backgroundColor: colors.danger }]}
+                            style={[styles.addButton, { backgroundColor: colors.primary }]}
                           >
-                            <X size={16} color="#fff" />
+                            <Plus size={20} color="#fff" />
                           </Pressable>
-                          <Pressable
-                            onPress={handleUpdateActivityCost}
-                            style={[styles.editButtonStyle, { backgroundColor: colors.success }]}
-                          >
-                            <Check size={16} color="#fff" />
-                          </Pressable>
-                          {editingPlannedExpense.isActivity && (
-                            <Text style={[styles.smallText, { color: colors.text.secondary, marginLeft: 8 }]}>
-                              Editando custo da atividade
-                            </Text>
-                          )}
-                        </View>
-                      ) : (
-                        <Pressable
-                          onPress={handleAddPlannedExpense}
-                          style={[styles.addButton, { backgroundColor: colors.primary }]}
-                        >
-                          <Plus size={20} color="#fff" />
-                        </Pressable>
-                      )}
-                    </View>
-                  </>
-                )}
-              </View>
-            </ScrollView>
-          ) : (
-            <TravelItinerary 
-              travel={travel} 
-              onUpdate={handleUpdateTravel} 
-              colors={colors} 
-            />
-          )}
+                        )}
+                      </View>
+                    </>
+                  )}
+                </View>
+              </ScrollView>
+            ) : (
+              <TravelItinerary 
+                travel={travel} 
+                onUpdate={handleUpdateTravel} 
+                colors={colors} 
+              />
+            )}
+          </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

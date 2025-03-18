@@ -161,7 +161,7 @@ export default function TravelItinerary({ travel, onUpdate, colors }: TravelItin
     }
     
     // Atualizar a viagem
-    onUpdate(updatedTravelData);
+    saveTravel(updatedTravelData);
     
     // Fechar modal e resetar formulário
     setShowAddModal(false);
@@ -244,34 +244,23 @@ export default function TravelItinerary({ travel, onUpdate, colors }: TravelItin
   };
 
   const saveTravel = async (updatedTravel: Travel) => {
+    // Atualizar a viagem localmente
+    onUpdate(updatedTravel);
+    
     try {
-      // Recalcular o valor disponível
-      const totalExpenses = updatedTravel.expenses.reduce((sum, exp) => sum + exp.amount, 0);
-      
-      // Atualizar o valor disponível
-      const updatedTravelWithDiscretionary = {
-        ...updatedTravel,
-        budget: {
-          ...updatedTravel.budget,
-          discretionary: updatedTravel.budget.total - totalExpenses
-        }
-      };
-      
-      const travels = await StorageService.loadTravels();
-      
-      const updatedTravels = travels.map(t => 
-        t.id === updatedTravelWithDiscretionary.id ? updatedTravelWithDiscretionary : t
-      );
-      
-      await StorageService.saveTravels(updatedTravels);
-      onUpdate(updatedTravelWithDiscretionary);
-      
-      // Disparar evento imediatamente sem setTimeout
-      triggerEvent('TRAVEL_UPDATED');
-      console.log('Itinerário atualizado e evento TRAVEL_UPDATED disparado');
+      // Salvar no AsyncStorage
+      const success = await StorageService.saveTravel(updatedTravel);
+      if (success) {
+        // Notificar outros componentes sobre a atualização
+        triggerEvent('TRAVEL_UPDATED');
+        console.log('Itinerário atualizado e evento TRAVEL_UPDATED disparado');
+      } else {
+        console.error('Erro ao salvar a viagem');
+        Alert.alert('Erro', 'Não foi possível salvar as alterações');
+      }
     } catch (error) {
-      console.error('Erro ao salvar itinerário:', error);
-      Alert.alert('Erro', 'Ocorreu um erro ao salvar o itinerário');
+      console.error('Erro ao salvar a viagem:', error);
+      Alert.alert('Erro', 'Ocorreu um erro ao salvar as alterações');
     }
   };
 
