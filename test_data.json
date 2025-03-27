@@ -1,0 +1,213 @@
+{
+  "travels": [
+    {
+      "name": "Orlando - Disney & Universal",
+      "startDate": "2024-04-01",
+      "endDate": "2024-04-03",
+      "budget": {
+        "total": 5000,
+        "planned": [
+          {
+            "id": 1,
+            "category": "transporte",
+            "description": "Transfer do Aeroporto",
+            "amount": 150,
+            "date": "2024-04-01",
+            "isPaid": true
+          },
+          {
+            "id": 2,
+            "category": "hospedagem",
+            "description": "Hotel Disney 2 noites",
+            "amount": 1200,
+            "date": "2024-04-01",
+            "isPaid": true
+          },
+          {
+            "id": 3,
+            "category": "passeio",
+            "description": "Ingressos Disney 2 dias",
+            "amount": 800,
+            "date": "2024-04-01",
+            "isPaid": true
+          }
+        ],
+        "discretionary": 2850
+      },
+      "expenses": [
+        {
+          "id": 1,
+          "category": "transporte",
+          "description": "Transfer do Aeroporto",
+          "amount": 150,
+          "date": "2024-04-01",
+          "isPaid": true
+        },
+        {
+          "id": 2,
+          "category": "hospedagem",
+          "description": "Hotel Disney 2 noites",
+          "amount": 1200,
+          "date": "2024-04-01",
+          "isPaid": true
+        }
+      ],
+      "itinerary": [
+        {
+          "id": 1,
+          "title": "Chegada em Orlando",
+          "category": "transporte",
+          "startDateTime": "2024-04-01T10:00:00.000Z",
+          "endDateTime": "2024-04-01T11:00:00.000Z",
+          "location": "Orlando International Airport",
+          "notes": "Retirar malas e encontrar transfer",
+          "estimatedCost": 150,
+          "completed": true
+        },
+        {
+          "id": 2,
+          "title": "Check-in no Hotel Disney",
+          "category": "hospedagem",
+          "startDateTime": "2024-04-01T11:30:00.000Z",
+          "endDateTime": "2024-04-01T12:00:00.000Z",
+          "location": "Disney's All-Star Movies Resort",
+          "notes": "Confirmar Early Check-in",
+          "estimatedCost": 0,
+          "completed": false
+        },
+        {
+          "id": 3,
+          "title": "Almoço no Hotel",
+          "category": "refeicao",
+          "startDateTime": "2024-04-01T12:30:00.000Z",
+          "endDateTime": "2024-04-01T13:30:00.000Z",
+          "location": "World Premiere Food Court",
+          "notes": "Usar Disney Dining Plan",
+          "estimatedCost": 0,
+          "completed": false
+        },
+        {
+          "id": 4,
+          "title": "Magic Kingdom",
+          "category": "passeio",
+          "startDateTime": "2024-04-01T14:00:00.000Z",
+          "endDateTime": "2024-04-01T23:00:00.000Z",
+          "location": "Magic Kingdom Park",
+          "notes": "FastPass+: Space Mountain, Pirates, Haunted Mansion",
+          "estimatedCost": 0,
+          "completed": false
+        },
+        {
+          "id": 5,
+          "title": "Jantar no Magic Kingdom",
+          "category": "refeicao",
+          "startDateTime": "2024-04-01T19:00:00.000Z",
+          "endDateTime": "2024-04-01T20:00:00.000Z",
+          "location": "Be Our Guest Restaurant",
+          "notes": "Reserva confirmada - Disney Dining Plan",
+          "estimatedCost": 0,
+          "completed": false
+        },
+        {
+          "id": 6,
+          "title": "Café da manhã no Hotel",
+          "category": "refeicao",
+          "startDateTime": "2024-04-02T07:00:00.000Z",
+          "endDateTime": "2024-04-02T08:00:00.000Z",
+          "location": "World Premiere Food Court",
+          "notes": "Disney Dining Plan",
+          "estimatedCost": 0,
+          "completed": false
+        },
+        {
+          "id": 7,
+          "title": "Epcot",
+          "category": "passeio",
+          "startDateTime": "2024-04-02T09:00:00.000Z",
+          "endDateTime": "2024-04-02T22:00:00.000Z",
+          "location": "Epcot",
+          "notes": "FastPass+: Soarin', Test Track, Frozen Ever After",
+          "estimatedCost": 0,
+          "completed": false
+        },
+        {
+          "id": 8,
+          "title": "Almoço no Epcot",
+          "category": "refeicao",
+          "startDateTime": "2024-04-02T13:00:00.000Z",
+          "endDateTime": "2024-04-02T14:00:00.000Z",
+          "location": "La Hacienda de San Angel",
+          "notes": "Reserva confirmada - Disney Dining Plan",
+          "estimatedCost": 0,
+          "completed": false
+        },
+        {
+          "id": 9,
+          "title": "Jantar no Epcot",
+          "category": "refeicao",
+          "startDateTime": "2024-04-02T19:00:00.000Z",
+          "endDateTime": "2024-04-02T20:00:00.000Z",
+          "location": "Le Cellier Steakhouse",
+          "notes": "Reserva confirmada - Disney Dining Plan",
+          "estimatedCost": 0,
+          "completed": false
+        },
+        {
+          "id": 10,
+          "title": "Café da manhã no Hotel",
+          "category": "refeicao",
+          "startDateTime": "2024-04-03T07:00:00.000Z",
+          "endDateTime": "2024-04-03T08:00:00.000Z",
+          "location": "World Premiere Food Court",
+          "notes": "Disney Dining Plan",
+          "estimatedCost": 0,
+          "completed": false
+        },
+        {
+          "id": 11,
+          "title": "Universal Studios",
+          "category": "passeio",
+          "startDateTime": "2024-04-03T09:00:00.000Z",
+          "endDateTime": "2024-04-03T18:00:00.000Z",
+          "location": "Universal Studios Florida",
+          "notes": "Express Pass incluído - Harry Potter, Transformers, Minions",
+          "estimatedCost": 200,
+          "completed": false
+        },
+        {
+          "id": 12,
+          "title": "Almoço no Universal",
+          "category": "refeicao",
+          "startDateTime": "2024-04-03T13:00:00.000Z",
+          "endDateTime": "2024-04-03T14:00:00.000Z",
+          "location": "Leaky Cauldron",
+          "notes": "Combo refeição + bebida",
+          "estimatedCost": 25,
+          "completed": false
+        },
+        {
+          "id": 13,
+          "title": "Check-out do Hotel",
+          "category": "hospedagem",
+          "startDateTime": "2024-04-03T19:00:00.000Z",
+          "endDateTime": "2024-04-03T19:30:00.000Z",
+          "location": "Disney's All-Star Movies Resort",
+          "notes": "Deixar malas na recepção",
+          "estimatedCost": 0,
+          "completed": false
+        },
+        {
+          "id": 14,
+          "title": "Transfer para o Aeroporto",
+          "category": "transporte",
+          "startDateTime": "2024-04-03T20:00:00.000Z",
+          "endDateTime": "2024-04-03T21:00:00.000Z",
+          "location": "Orlando International Airport",
+          "notes": "Chegar com 3 horas de antecedência",
+          "estimatedCost": 150,
+          "completed": false
+        }
+      ]
+    }
+  ]
+} 

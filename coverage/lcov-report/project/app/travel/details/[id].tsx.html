@@ -25,14 +25,14 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/294</span>
+                <span class='fraction'>0/298</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/199</span>
+                <span class='fraction'>0/203</span>
             </div>
         
             
@@ -46,7 +46,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/276</span>
+                <span class='fraction'>0/280</span>
             </div>
         
             
@@ -1519,7 +1519,19 @@
 <a name='L1454'></a><a href='#L1454'>1454</a>
 <a name='L1455'></a><a href='#L1455'>1455</a>
 <a name='L1456'></a><a href='#L1456'>1456</a>
-<a name='L1457'></a><a href='#L1457'>1457</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L1457'></a><a href='#L1457'>1457</a>
+<a name='L1458'></a><a href='#L1458'>1458</a>
+<a name='L1459'></a><a href='#L1459'>1459</a>
+<a name='L1460'></a><a href='#L1460'>1460</a>
+<a name='L1461'></a><a href='#L1461'>1461</a>
+<a name='L1462'></a><a href='#L1462'>1462</a>
+<a name='L1463'></a><a href='#L1463'>1463</a>
+<a name='L1464'></a><a href='#L1464'>1464</a>
+<a name='L1465'></a><a href='#L1465'>1465</a>
+<a name='L1466'></a><a href='#L1466'>1466</a>
+<a name='L1467'></a><a href='#L1467'>1467</a>
+<a name='L1468'></a><a href='#L1468'>1468</a>
+<a name='L1469'></a><a href='#L1469'>1469</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -2553,7 +2565,13 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -2678,7 +2696,13 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -3139,7 +3163,7 @@ export default function <span class="fstat-no" title="function not covered" >Tra
       id: Date.now(),
       category: newExpense.category || 'other',
       description: newExpense.description || '',
-      amount: Number(newExpense.amount),
+      amount: Number(newExpense.amount.toString().replace(',', '.')),
       date: new Date().toISOString(),
       isPaid: false
     };
@@ -3185,7 +3209,7 @@ export default function <span class="fstat-no" title="function not covered" >Tra
       id: Date.now(),
       category: newPlannedExpense.category || 'other',
       description: newPlannedExpense.description || '',
-      amount: Number(newPlannedExpense.amount),
+      amount: Number(newPlannedExpense.amount.toString().replace(',', '.')),
       date: new Date().toISOString(),
       isPaid: false
     };
@@ -3365,7 +3389,7 @@ export default function <span class="fstat-no" title="function not covered" >Tra
             ...e,
             category: newExpense.category || 'other',
             description: newExpense.description || '',
-            amount: Number(newExpense.amount)
+            amount: Number((newExpense.amount || 0).toString().replace(',', '.'))
           }
         : e
     );
@@ -3414,7 +3438,7 @@ export default function <span class="fstat-no" title="function not covered" >Tra
             ...e,
             category: newPlannedExpense.category || 'other',
             description: newPlannedExpense.description || '',
-            amount: Number(newPlannedExpense.amount)
+            amount: Number((newPlannedExpense.amount || 0).toString().replace(',', '.'))
           }
         : e
     );
@@ -4009,7 +4033,13 @@ export default function <span class="fstat-no" title="function not covered" >Tra
                         &lt;TextInput
                           style={[styles.expenseInput, { color: colors.text.primary }]}
                           value={newExpense.amount?.toString()}
-                          onChangeText={<span class="fstat-no" title="function not covered" >am</span>ount =&gt; <span class="cstat-no" title="statement not covered" >setNewExpense(<span class="fstat-no" title="function not covered" >pr</span>ev =&gt; (<span class="cstat-no" title="statement not covered" >{ ...prev, amount: Number(amount) || 0 })</span>)}</span>
+                          onChangeText={<span class="fstat-no" title="function not covered" >am</span>ount =&gt; {
+                            // Permitir números, vírgula e ponto
+                            const sanitizedAmount = <span class="cstat-no" title="statement not covered" >amount.replace(/[^0-9,.]/g, '');</span>
+                            // Substituir vírgula por ponto para cálculo
+                            const numericAmount = <span class="cstat-no" title="statement not covered" >Number(sanitizedAmount.replace(',', '.')) || 0;</span>
+<span class="cstat-no" title="statement not covered" >                            setNewExpense(<span class="fstat-no" title="function not covered" >pr</span>ev =&gt; (<span class="cstat-no" title="statement not covered" >{ ...prev, amount: numericAmount })</span>);</span>
+                          }}
                           keyboardType="numeric"
                           placeholder="Valor"
                           placeholderTextColor={colors.text.secondary}
@@ -4134,7 +4164,13 @@ export default function <span class="fstat-no" title="function not covered" >Tra
                         &lt;TextInput
                           style={[styles.expenseInput, { color: colors.text.primary }]}
                           value={newPlannedExpense.amount?.toString()}
-                          onChangeText={<span class="fstat-no" title="function not covered" >am</span>ount =&gt; <span class="cstat-no" title="statement not covered" >setNewPlannedExpense(<span class="fstat-no" title="function not covered" >pr</span>ev =&gt; (<span class="cstat-no" title="statement not covered" >{ ...prev, amount: Number(amount) || 0 })</span>)}</span>
+                          onChangeText={<span class="fstat-no" title="function not covered" >am</span>ount =&gt; {
+                            // Permitir números, vírgula e ponto
+                            const sanitizedAmount = <span class="cstat-no" title="statement not covered" >amount.replace(/[^0-9,.]/g, '');</span>
+                            // Substituir vírgula por ponto para cálculo
+                            const numericAmount = <span class="cstat-no" title="statement not covered" >Number(sanitizedAmount.replace(',', '.')) || 0;</span>
+<span class="cstat-no" title="statement not covered" >                            setNewPlannedExpense(<span class="fstat-no" title="function not covered" >pr</span>ev =&gt; (<span class="cstat-no" title="statement not covered" >{ ...prev, amount: numericAmount })</span>);</span>
+                          }}
                           keyboardType="numeric"
                           placeholder="Valor"
                           placeholderTextColor={colors.text.secondary}
@@ -4438,7 +4474,7 @@ const styles = <span class="cstat-no" title="statement not covered" >StyleSheet.
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-03-27T16:43:45.837Z
+                at 2025-03-27T21:51:54.826Z
             </div>
         <script src="../../../../prettify.js"></script>
         <script>

@@ -5,13 +5,15 @@ import { StorageService, Income } from '../utils/storage';
 import IncomeForm from '../components/IncomeForm';
 import MonthSelector from '../components/MonthSelector';
 import { useEvent } from '../utils/EventContext';
+import { useRouter } from 'expo-router';
 
 export default function IncomeScreen() {
+  const router = useRouter();
   const [incomes, setIncomes] = useState<Income[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingIncome, setEditingIncome] = useState<Income | null>(null);
   const [currentDate, setCurrentDate] = useState(new Date());
-  const { triggerEvent } = useEvent();
+  const { triggerEvent, subscribeToEvent } = useEvent();
 
   const loadIncomes = useCallback(async () => {
     try {
@@ -24,7 +26,10 @@ export default function IncomeScreen() {
 
   useEffect(() => {
     loadIncomes();
-  }, [loadIncomes]);
+    // Inscrever no evento de atualização
+    const unsubscribe = subscribeToEvent('INCOME_UPDATED', loadIncomes);
+    return () => unsubscribe();
+  }, [loadIncomes, subscribeToEvent]);
 
   const handleMonthChange = (date: Date) => {
     setCurrentDate(date);
@@ -131,109 +136,115 @@ export default function IncomeScreen() {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Renda</Text>
-        <Pressable 
-          style={styles.addButton} 
-          testID="add-income-button"
-          onPress={() => {
-            setEditingIncome(null);
-            setShowForm(true);
-          }}
-        >
-          <Plus size={24} color="#ffffff" />
-        </Pressable>
-      </View>
-
-      <MonthSelector 
-        currentDate={currentDate} 
-        onMonthChange={handleMonthChange} 
-      />
-
-      <View style={styles.totalContainer}>
-        <View style={styles.totalBox}>
-          <Text style={styles.totalLabel}>Renda Total</Text>
-          <Text style={styles.totalValue} testID="income-total-value">R$ {calculateTotal()}</Text>
+    <>
+      <ScrollView style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Renda</Text>
+          <Pressable 
+            style={styles.addButton} 
+            testID="add-income-button"
+            onPress={() => {
+              setEditingIncome(null);
+              setShowForm(true);
+            }}
+          >
+            <Plus size={24} color="#ffffff" />
+          </Pressable>
         </View>
-        <View style={styles.totalBox}>
-          <Text style={styles.totalLabel}>Sua Renda</Text>
-          <Text style={styles.totalValue} testID="your-income-value">R$ {calculateYourTotal()}</Text>
+
+        <MonthSelector 
+          currentDate={currentDate} 
+          onMonthChange={handleMonthChange} 
+        />
+
+        <View style={styles.totalContainer}>
+          <View style={styles.totalBox}>
+            <Text style={styles.totalLabel}>Renda Total</Text>
+            <Text style={styles.totalValue} testID="income-total-value">R$ {calculateTotal()}</Text>
+          </View>
+          <View style={styles.totalBox}>
+            <Text style={styles.totalLabel}>Sua Renda</Text>
+            <Text style={styles.totalValue} testID="your-income-value">R$ {calculateYourTotal()}</Text>
+          </View>
         </View>
-      </View>
 
-      <View style={styles.incomeList}>
-        {incomes.map((income) => {
-          const currentMonthExtras = income.monthlyExtras?.find(
-            m => m.month === currentDate.getMonth() && m.year === currentDate.getFullYear()
-          );
-          
-          return (
-            <View key={income.id} style={styles.incomeCard}>
-              <View style={styles.incomeHeader}>
-                <Text style={styles.personName}>{income.person}</Text>
-                <View style={styles.actionButtons}>
-                  <Pressable
-                    style={styles.actionButton}
-                    testID="edit-income-button"
-                    onPress={() => handleEditIncome(income)}
-                  >
-                    <Pencil size={20} color="#64748b" />
-                  </Pressable>
-                  <Pressable
-                    style={styles.actionButton}
-                    testID="delete-income-button"
-                    onPress={() => handleDeleteIncome(income)}
-                  >
-                    <Trash2 size={20} color="#64748b" />
-                  </Pressable>
-                </View>
-              </View>
-
-              <View style={styles.sourcesList}>
-                {income.sources.map((source) => (
-                  <View key={source.id} style={styles.sourceItem}>
-                    <View style={styles.sourceInfo}>
-                      <View style={[styles.sourceIcon, { backgroundColor: source.color }]}>
-                        {source.icon === 'Briefcase' && <Briefcase size={20} color="#ffffff" />}
-                        {source.icon === 'Building2' && <Building2 size={20} color="#ffffff" />}
-                        {source.icon === 'Coins' && <Coins size={20} color="#ffffff" />}
-                      </View>
-                      <Text style={styles.sourceName}>{source.name}</Text>
-                    </View>
-                    <Text style={styles.sourceAmount}>R$ {source.amount.toFixed(2)}</Text>
+        <View style={styles.incomeList}>
+          {incomes.map((income) => {
+            const currentMonthExtras = income.monthlyExtras?.find(
+              m => m.month === currentDate.getMonth() && m.year === currentDate.getFullYear()
+            );
+            
+            return (
+              <View key={income.id} style={styles.incomeCard}>
+                <View style={styles.incomeHeader}>
+                  <Text style={styles.personName}>{income.person}</Text>
+                  <View style={styles.actionButtons}>
+                    <Pressable
+                      style={styles.actionButton}
+                      testID="edit-income-button"
+                      onPress={() => handleEditIncome(income)}
+                    >
+                      <Pencil size={20} color="#64748b" />
+                    </Pressable>
+                    <Pressable
+                      style={styles.actionButton}
+                      testID="delete-income-button"
+                      onPress={() => handleDeleteIncome(income)}
+                    >
+                      <Trash2 size={20} color="#64748b" />
+                    </Pressable>
                   </View>
-                ))}
-              </View>
+                </View>
 
-              {currentMonthExtras && currentMonthExtras.extras.length > 0 && (
-                <View style={styles.extrasContainer}>
-                  <Text style={styles.extrasTitle}>Extras do Mês</Text>
-                  {currentMonthExtras.extras.map((extra) => (
-                    <View key={extra.id} style={styles.extraItem}>
-                      <Text style={styles.extraDescription}>{extra.description}</Text>
-                      <Text style={styles.extraAmount}>R$ {extra.amount.toFixed(2)}</Text>
+                <View style={styles.sourcesList}>
+                  {income.sources.map((source) => (
+                    <View key={source.id} style={styles.sourceItem}>
+                      <View style={styles.sourceInfo}>
+                        <View style={[styles.sourceIcon, { backgroundColor: source.color }]}>
+                          {source.icon === 'Briefcase' && <Briefcase size={20} color="#ffffff" />}
+                          {source.icon === 'Building2' && <Building2 size={20} color="#ffffff" />}
+                          {source.icon === 'Coins' && <Coins size={20} color="#ffffff" />}
+                        </View>
+                        <Text style={styles.sourceName}>{source.name}</Text>
+                      </View>
+                      <Text style={styles.sourceAmount}>R$ {source.amount.toFixed(2)}</Text>
                     </View>
                   ))}
                 </View>
-              )}
-            </View>
-          );
-        })}
-      </View>
+
+                {currentMonthExtras && currentMonthExtras.extras.length > 0 && (
+                  <View style={styles.extrasContainer}>
+                    <Text style={styles.extrasTitle}>Extras do Mês</Text>
+                    {currentMonthExtras.extras.map((extra) => (
+                      <View key={extra.id} style={styles.extraItem}>
+                        <Text style={styles.extraDescription}>{extra.description}</Text>
+                        <Text style={styles.extraAmount}>R$ {extra.amount.toFixed(2)}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+            );
+          })}
+        </View>
+      </ScrollView>
 
       {showForm && (
-        <IncomeForm
-          onSave={handleSaveIncome}
-          onCancel={() => {
-            setShowForm(false);
-            setEditingIncome(null);
-          }}
-          initialData={editingIncome}
-          currentDate={currentDate}
-        />
+        <View style={styles.formContainer}>
+          <ScrollView>
+            <IncomeForm
+              onSave={handleSaveIncome}
+              onCancel={() => {
+                setShowForm(false);
+                setEditingIncome(null);
+              }}
+              initialData={editingIncome}
+              currentDate={currentDate}
+            />
+          </ScrollView>
+        </View>
       )}
-    </ScrollView>
+    </>
   );
 }
 
@@ -383,5 +394,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#1e293b',
+  },
+  formContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#f8fafc',
+    zIndex: 1000,
+    elevation: 5,
   },
 });

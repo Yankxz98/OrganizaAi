@@ -19,16 +19,22 @@ export default function ExpensesDropdown({
     setIsOpen(!isOpen);
   };
 
-  const formatCurrency = (value: number) => {
-    return `R$ ${value.toFixed(2)}`;
-  };
+  // Logs dos valores puros recebidos
+  console.log('Valor de totalExpenses:', totalExpenses);
+  console.log('Valor de fixedExpenses:', fixedExpenses);
+  console.log('Valor de variableExpenses:', variableExpenses);
+
+  // Formatação para exibição
+  const totalFormatted = `R$ ${Number(totalExpenses).toFixed(2)}`;
+  const fixedFormatted = `R$ ${Number(fixedExpenses).toFixed(2)}`;
+  const variableFormatted = `R$ ${Number(variableExpenses).toFixed(2)}`;
 
   return (
     <View style={styles.container}>
       <Pressable style={styles.header} onPress={toggleDropdown}>
         <View>
           <Text style={styles.title}>Despesas Totais</Text>
-          <Text style={styles.totalValue}>{formatCurrency(totalExpenses)}</Text>
+          <Text style={styles.totalValue}>{totalFormatted}</Text>
         </View>
         {isOpen ? (
           <ChevronUp color="#64748b" size={24} />
@@ -41,11 +47,11 @@ export default function ExpensesDropdown({
         <View style={styles.content}>
           <View style={styles.expenseRow}>
             <Text style={styles.expenseType}>Despesas Fixas</Text>
-            <Text style={styles.expenseValue}>{formatCurrency(fixedExpenses)}</Text>
+            <Text style={styles.expenseValue}>{fixedFormatted}</Text>
           </View>
           <View style={[styles.expenseRow, styles.lastRow]}>
             <Text style={styles.expenseType}>Despesas Variáveis</Text>
-            <Text style={styles.expenseValue}>{formatCurrency(variableExpenses)}</Text>
+            <Text style={styles.expenseValue}>{variableFormatted}</Text>
           </View>
         </View>
       )}

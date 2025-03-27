@@ -104,6 +104,10 @@ export interface Travel {
   itinerary?: TravelActivity[];
 }
 
+export interface ImportData {
+  travels?: Travel[];
+}
+
 export const StorageService = {
   // Monthly Data
   async saveMonthlyData(data: MonthlyData, date: Date) {
@@ -260,30 +264,9 @@ export const StorageService = {
       // Obter todas as chaves do AsyncStorage
       const allKeys = await AsyncStorage.getAllKeys();
       
-      // Filtrar apenas as chaves que queremos apagar (viagens e outras, exceto resumos, gastos e rendas)
-      const keysToRemove = allKeys.filter(key => {
-        // Preservar dados de resumos (monthly data)
-        if (key.startsWith(STORAGE_KEYS.MONTHLY_DATA)) {
-          return false;
-        }
-        
-        // Preservar dados de gastos
-        if (key.startsWith(STORAGE_KEYS.EXPENSES)) {
-          return false;
-        }
-        
-        // Preservar dados de rendas
-        if (key === STORAGE_KEYS.INCOME) {
-          return false;
-        }
-        
-        // Remover todos os outros dados (incluindo viagens)
-        return true;
-      });
-      
-      // Remover apenas as chaves selecionadas
-      if (keysToRemove.length > 0) {
-        await AsyncStorage.multiRemove(keysToRemove);
+      // Remover todas as chaves
+      if (allKeys.length > 0) {
+        await AsyncStorage.multiRemove(allKeys);
       }
       
       return true;
@@ -291,5 +274,37 @@ export const StorageService = {
       console.error('Error clearing data:', error);
       return false;
     }
-  }
+  },
+
+  async importData(jsonData: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const data: ImportData = JSON.parse(jsonData);
+      
+      if (!data || typeof data !== 'object') {
+        return { success: false, message: 'Formato de dados inválido' };
+      }
+
+      // Importar viagens
+      if (data.travels) {
+        const currentTravels = await this.loadTravels();
+        const newTravels = data.travels.map(travel => ({
+          ...travel,
+          id: Date.now() + Math.random() // Garantir IDs únicos
+        }));
+        
+        await this.saveTravels([...currentTravels, ...newTravels]);
+      }
+
+      return { 
+        success: true, 
+        message: 'Dados importados com sucesso!' 
+      };
+    } catch (error) {
+      console.error('Erro ao importar dados:', error);
+      return { 
+        success: false, 
+        message: 'Erro ao processar o JSON. Verifique o formato dos dados.' 
+      };
+    }
+  },
 }; 

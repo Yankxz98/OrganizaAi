@@ -162,7 +162,7 @@ export default function TravelDetails() {
       id: Date.now(),
       category: newExpense.category || 'other',
       description: newExpense.description || '',
-      amount: Number(newExpense.amount),
+      amount: Number(newExpense.amount.toString().replace(',', '.')),
       date: new Date().toISOString(),
       isPaid: false
     };
@@ -208,7 +208,7 @@ export default function TravelDetails() {
       id: Date.now(),
       category: newPlannedExpense.category || 'other',
       description: newPlannedExpense.description || '',
-      amount: Number(newPlannedExpense.amount),
+      amount: Number(newPlannedExpense.amount.toString().replace(',', '.')),
       date: new Date().toISOString(),
       isPaid: false
     };
@@ -388,7 +388,7 @@ export default function TravelDetails() {
             ...e,
             category: newExpense.category || 'other',
             description: newExpense.description || '',
-            amount: Number(newExpense.amount)
+            amount: Number((newExpense.amount || 0).toString().replace(',', '.'))
           }
         : e
     );
@@ -437,7 +437,7 @@ export default function TravelDetails() {
             ...e,
             category: newPlannedExpense.category || 'other',
             description: newPlannedExpense.description || '',
-            amount: Number(newPlannedExpense.amount)
+            amount: Number((newPlannedExpense.amount || 0).toString().replace(',', '.'))
           }
         : e
     );
@@ -1032,7 +1032,13 @@ export default function TravelDetails() {
                         <TextInput
                           style={[styles.expenseInput, { color: colors.text.primary }]}
                           value={newExpense.amount?.toString()}
-                          onChangeText={amount => setNewExpense(prev => ({ ...prev, amount: Number(amount) || 0 }))}
+                          onChangeText={amount => {
+                            // Permitir números, vírgula e ponto
+                            const sanitizedAmount = amount.replace(/[^0-9,.]/g, '');
+                            // Substituir vírgula por ponto para cálculo
+                            const numericAmount = Number(sanitizedAmount.replace(',', '.')) || 0;
+                            setNewExpense(prev => ({ ...prev, amount: numericAmount }));
+                          }}
                           keyboardType="numeric"
                           placeholder="Valor"
                           placeholderTextColor={colors.text.secondary}
@@ -1157,7 +1163,13 @@ export default function TravelDetails() {
                         <TextInput
                           style={[styles.expenseInput, { color: colors.text.primary }]}
                           value={newPlannedExpense.amount?.toString()}
-                          onChangeText={amount => setNewPlannedExpense(prev => ({ ...prev, amount: Number(amount) || 0 }))}
+                          onChangeText={amount => {
+                            // Permitir números, vírgula e ponto
+                            const sanitizedAmount = amount.replace(/[^0-9,.]/g, '');
+                            // Substituir vírgula por ponto para cálculo
+                            const numericAmount = Number(sanitizedAmount.replace(',', '.')) || 0;
+                            setNewPlannedExpense(prev => ({ ...prev, amount: numericAmount }));
+                          }}
                           keyboardType="numeric"
                           placeholder="Valor"
                           placeholderTextColor={colors.text.secondary}

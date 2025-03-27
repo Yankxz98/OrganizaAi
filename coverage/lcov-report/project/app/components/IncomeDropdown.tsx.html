@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">85.71% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/7</span>
+                <span class='fraction'>6/7</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">50% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/4</span>
+                <span class='fraction'>2/4</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">66.66% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/3</span>
+                <span class='fraction'>2/3</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">85.71% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/7</span>
+                <span class='fraction'>6/7</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line low'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -194,17 +194,17 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -237,7 +237,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -305,22 +305,22 @@ interface IncomeDropdownProps {
   extrasIncome: number;
 }
 &nbsp;
-export default function <span class="fstat-no" title="function not covered" >IncomeDropdown(</span>{ 
+export default function IncomeDropdown({ 
   totalIncome, 
   baseIncome, 
   extrasIncome 
 }: IncomeDropdownProps) {
-  const [isOpen, setIsOpen] = <span class="cstat-no" title="statement not covered" >useState(false);</span>
+  const [isOpen, setIsOpen] = useState(false);
 &nbsp;
-  const toggleDropdown = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >()</span> =&gt; {</span>
+  const toggleDropdown = <span class="fstat-no" title="function not covered" >()</span> =&gt; {
 <span class="cstat-no" title="statement not covered" >    setIsOpen(!isOpen);</span>
   };
 &nbsp;
-  const formatCurrency = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >(v</span>alue: number) =&gt; {</span>
-<span class="cstat-no" title="statement not covered" >    return `R$ ${value.toFixed(2)}`;</span>
+  const formatCurrency = (value: number) =&gt; {
+    return `R$ ${value.toFixed(2)}`;
   };
 &nbsp;
-<span class="cstat-no" title="statement not covered" >  return (</span>
+  return (
     &lt;View style={styles.container}&gt;
       &lt;Pressable style={styles.header} onPress={toggleDropdown}&gt;
         &lt;View&gt;
@@ -330,7 +330,7 @@ export default function <span class="fstat-no" title="function not covered" >Inc
         &lt;View style={styles.headerRight}&gt;
           &lt;ArrowUpRight color="#22c55e" size={20} style={styles.icon} /&gt;
           {isOpen ? (
-            &lt;ChevronUp color="#64748b" size={24} /&gt;
+<span class="branch-0 cbranch-no" title="branch not covered" >            &lt;ChevronUp color="#64748b" size={24} /&gt;</span>
           ) : (
             &lt;ChevronDown color="#64748b" size={24} /&gt;
           )}
@@ -338,7 +338,7 @@ export default function <span class="fstat-no" title="function not covered" >Inc
       &lt;/Pressable&gt;
 &nbsp;
       {isOpen &amp;&amp; (
-        &lt;View style={styles.content}&gt;
+<span class="branch-1 cbranch-no" title="branch not covered" >        &lt;View style={styles.content}&gt;</span>
           &lt;View style={styles.incomeRow}&gt;
             &lt;Text style={styles.incomeType}&gt;Renda Base&lt;/Text&gt;
             &lt;Text style={styles.incomeValue}&gt;{formatCurrency(baseIncome)}&lt;/Text&gt;
@@ -353,7 +353,7 @@ export default function <span class="fstat-no" title="function not covered" >Inc
   );
 }
 &nbsp;
-const styles = <span class="cstat-no" title="statement not covered" >StyleSheet.create({</span>
+const styles = StyleSheet.create({
   container: {
     backgroundColor: '#ffffff',
     borderRadius: 12,
@@ -418,7 +418,7 @@ const styles = <span class="cstat-no" title="statement not covered" >StyleSheet.
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-03-27T16:43:45.837Z
+                at 2025-03-27T21:51:54.826Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

@@ -70,16 +70,24 @@ export default function HomeScreen() {
       const totalIncome = totalBaseIncome + totalExtrasIncome;
       
       // Separar despesas fixas e variáveis
-      const fixed = expensesData
+      const fixed = Number(expensesData
         .filter(expense => expense.type === 'fixed')
-        .reduce((total, expense) => total + expense.amount, 0);
+        .reduce((total, expense) => total + expense.amount, 0)
+        .toFixed(2));
       
-      const variable = expensesData
+      const variable = Number(expensesData
         .filter(expense => expense.type === 'variable')
-        .reduce((total, expense) => total + expense.amount, 0);
+        .reduce((total, expense) => total + expense.amount, 0)
+        .toFixed(2));
 
-      const totalExpenses = fixed + variable;
+      const totalExpenses = Number((fixed + variable).toFixed(2));
       
+      // Logs para verificar os valores calculados
+      console.log('Dashboard - Valores calculados:');
+      console.log('Total Despesas:', totalExpenses);
+      console.log('Despesas Fixas:', fixed);
+      console.log('Despesas Variáveis:', variable);
+
       // Calcular poupança (renda - despesas)
       const savings = totalIncome - totalExpenses;
 
@@ -154,7 +162,7 @@ export default function HomeScreen() {
       <View style={styles.summaryContainer}>
         <View style={styles.balanceCard}>
           <Text style={styles.balanceLabel}>Saldo Disponível</Text>
-          <Text style={styles.balance}>R$ {monthlyData.totalIncome - monthlyData.totalExpenses}</Text>
+          <Text style={styles.balance}>R$ {(monthlyData.totalIncome - monthlyData.totalExpenses).toFixed(2)}</Text>
         </View>
 
         <IncomeDropdown
@@ -174,7 +182,7 @@ export default function HomeScreen() {
             <Text style={styles.cardTitle}>Poupança</Text>
             <Wallet color="#3b82f6" size={20} />
           </View>
-          <Text style={styles.cardValue}>R$ {monthlyData.savings}</Text>
+          <Text style={styles.cardValue}>R$ {monthlyData.savings.toFixed(2)}</Text>
           <View style={styles.progressBar}>
             <View 
               style={[

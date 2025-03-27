@@ -142,18 +142,18 @@ export default function ExpensesScreen() {
       <View style={styles.totalContainer}>
         <View style={styles.totalBox}>
           <Text style={styles.totalLabel}>Total de Despesas</Text>
-          <Text style={styles.totalValue}>R$ {calculateTotal()}</Text>
+          <Text style={styles.totalValue}>R$ {calculateTotal().toFixed(2)}</Text>
         </View>
       </View>
 
       <View style={styles.totalContainer}>
         <View style={styles.totalBox}>
           <Text style={styles.totalLabel}>Despesas Fixas</Text>
-          <Text style={styles.totalValue}>R$ {calculateFixedTotal()}</Text>
+          <Text style={styles.totalValue}>R$ {calculateFixedTotal().toFixed(2)}</Text>
         </View>
         <View style={styles.totalBox}>
           <Text style={styles.totalLabel}>Despesas Variáveis</Text>
-          <Text style={styles.totalValue}>R$ {calculateVariableTotal()}</Text>
+          <Text style={styles.totalValue}>R$ {calculateVariableTotal().toFixed(2)}</Text>
         </View>
       </View>
 
