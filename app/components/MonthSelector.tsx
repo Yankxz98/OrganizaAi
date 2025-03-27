@@ -39,6 +39,7 @@ export default function MonthSelector({
         onPress={goToPreviousMonth} 
         style={styles.button}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        testID="previous-month-button"
       >
         <ChevronLeft size={24} color={colors.text.secondary} />
       </Pressable>
@@ -56,6 +57,7 @@ export default function MonthSelector({
         onPress={goToNextMonth} 
         style={styles.button}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        testID="next-month-button"
       >
         <ChevronRight size={24} color={colors.text.secondary} />
       </Pressable>

@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, StyleSheet, Pressable, ScrollView, Alert } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Expense } from '../utils/storage';
 import { EXPENSE_CATEGORIES } from '../utils/constants';
 import { Coffee, ShoppingBag, Car, Heart, User, Package } from 'lucide-react-native';
 
 interface ExpenseFormProps {
   onSave: (expense: Expense) => void;
-  onCancel: () => void;
+  onCancel?: () => void;
   initialData?: Expense | null;
 }
 
@@ -30,24 +31,35 @@ const IconComponent = ({ name, color }: { name: string; color: string }) => {
 };
 
 export default function ExpenseForm({ onSave, onCancel, initialData }: ExpenseFormProps) {
-  const [expense, setExpense] = useState<Expense>({
-    id: Date.now(),
-    category: 'others',
-    description: '',
-    amount: 0,
-    type: 'variable'
+  const [expense, setExpense] = useState<Expense>(() => {
+    if (initialData) {
+      return {...initialData};
+    }
+    return {
+      id: Date.now(),
+      category: 'others',
+      description: '',
+      amount: 0,
+      type: 'variable'
+    };
   });
 
-  const [installments, setInstallments] = useState('1');
+  const [installments, setInstallments] = useState(() => {
+    return initialData?.installments ? initialData.installments.total.toString() : '1';
+  });
+  
+  const [initialized, setInitialized] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
-    if (initialData) {
-      setExpense(initialData);
+    if (initialData && !initialized) {
+      setExpense({...initialData});
       if (initialData.installments) {
         setInstallments(initialData.installments.total.toString());
       }
+      setInitialized(true);
     }
-  }, [initialData]);
+  }, [initialData, initialized]);
 
   const handleSave = () => {
     if (!expense.description.trim()) {
@@ -67,6 +79,14 @@ export default function ExpenseForm({ onSave, onCancel, initialData }: ExpenseFo
     onSave(finalExpense);
   };
 
+  const handleCancel = () => {
+    if (onCancel) {
+      onCancel();
+    } else if (router) {
+      router.back();
+    }
+  };
+
   return (
     <ScrollView style={styles.container}>
       <Text style={styles.title}>{initialData ? 'Editar Despesa' : 'Nova Despesa'}</Text>
@@ -82,6 +102,7 @@ export default function ExpenseForm({ onSave, onCancel, initialData }: ExpenseFo
                 expense.category === cat.id && { backgroundColor: cat.color }
               ]}
               onPress={() => setExpense({ ...expense, category: cat.id })}
+              testID={`expense-category-${cat.id}-button`}
             >
               <View style={styles.categoryIcon}>
                 <IconComponent
@@ -106,6 +127,7 @@ export default function ExpenseForm({ onSave, onCancel, initialData }: ExpenseFo
         <Text style={styles.label}>Descrição</Text>
         <TextInput
           style={styles.input}
+          testID="expense-description-input"
           value={expense.description}
           onChangeText={(text) => setExpense({ ...expense, description: text })}
           placeholder="Ex: Compras do mês, Lanche na padaria, etc."
@@ -116,6 +138,7 @@ export default function ExpenseForm({ onSave, onCancel, initialData }: ExpenseFo
         <Text style={styles.label}>Valor</Text>
         <TextInput
           style={styles.input}
+          testID="expense-amount-input"
           value={expense.amount.toString()}
           onChangeText={(text) => setExpense({ ...expense, amount: Number(text) || 0 })}
           keyboardType="numeric"
@@ -131,6 +154,7 @@ export default function ExpenseForm({ onSave, onCancel, initialData }: ExpenseFo
               styles.typeButton,
               expense.type === 'fixed' && styles.typeButtonActive
             ]}
+            testID="expense-type-fixed-button"
             onPress={() => setExpense({ ...expense, type: 'fixed' })}
           >
             <Text style={[
@@ -143,6 +167,7 @@ export default function ExpenseForm({ onSave, onCancel, initialData }: ExpenseFo
               styles.typeButton,
               expense.type === 'variable' && styles.typeButtonActive
             ]}
+            testID="expense-type-variable-button"
             onPress={() => setExpense({ ...expense, type: 'variable' })}
           >
             <Text style={[
@@ -158,6 +183,7 @@ export default function ExpenseForm({ onSave, onCancel, initialData }: ExpenseFo
           <Text style={styles.label}>Número de Parcelas</Text>
           <TextInput
             style={styles.input}
+            testID="expense-installments-input"
             value={installments}
             onChangeText={setInstallments}
             keyboardType="numeric"
@@ -172,10 +198,10 @@ export default function ExpenseForm({ onSave, onCancel, initialData }: ExpenseFo
       )}
 
       <View style={styles.buttonContainer}>
-        <Pressable style={styles.cancelButton} onPress={onCancel}>
+        <Pressable style={styles.cancelButton} testID="expense-cancel-button" onPress={handleCancel}>
           <Text style={styles.cancelButtonText}>Cancelar</Text>
         </Pressable>
-        <Pressable style={styles.saveButton} onPress={handleSave}>
+        <Pressable style={styles.saveButton} testID="expense-save-button" onPress={handleSave}>
           <Text style={styles.saveButtonText}>Salvar</Text>
         </Pressable>
       </View>

@@ -194,6 +194,17 @@ export default function IncomeForm({ onSave, onCancel, initialData, currentDate 
   const handleSave = () => {
     if (!formData.person || !formData.sources?.length) return;
 
+    // Validar se há valores negativos
+    const hasNegativeValues = formData.sources.some(source => source.amount < 0) ||
+      formData.monthlyExtras?.some(month => 
+        month.extras.some(extra => extra.amount < 0)
+      );
+
+    if (hasNegativeValues) {
+      Alert.alert('Erro', 'Os valores não podem ser negativos');
+      return;
+    }
+
     const newIncome: Income = {
       id: initialData?.id || Date.now(),
       person: formData.person,
@@ -213,7 +224,7 @@ export default function IncomeForm({ onSave, onCancel, initialData, currentDate 
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} testID="income-form">
       <Text style={styles.title}>{initialData ? 'Editar Renda' : 'Nova Renda'}</Text>
       
       <View style={styles.inputGroup}>
@@ -223,6 +234,7 @@ export default function IncomeForm({ onSave, onCancel, initialData, currentDate 
           value={formData.person}
           onChangeText={(text) => setFormData({ ...formData, person: text })}
           placeholder="Ex: Você, Parceiro(a)"
+          testID="income-person-input"
         />
       </View>
 
@@ -249,18 +261,20 @@ export default function IncomeForm({ onSave, onCancel, initialData, currentDate 
           <Text style={styles.label}>Nova Fonte</Text>
           <TextInput
             style={styles.input}
+            testID="income-source-name-input"
             value={newSource.name}
             onChangeText={(text) => setNewSource({ ...newSource, name: text })}
-            placeholder="Nome da fonte"
+            placeholder="Ex: Salário, Freelance, etc."
           />
           <TextInput
             style={styles.input}
-            keyboardType="numeric"
-            value={newSource.amount?.toString()}
+            testID="income-source-amount-input"
+            value={newSource.amount?.toString() || '0'}
             onChangeText={(text) => setNewSource({ ...newSource, amount: Number(text) || 0 })}
-            placeholder="Valor"
+            keyboardType="numeric"
+            placeholder="0.00"
           />
-          <Pressable style={styles.addButton} onPress={handleAddSource}>
+          <Pressable style={styles.addButton} testID="income-add-source-button" onPress={handleAddSource}>
             <Text style={styles.addButtonText}>Adicionar Fonte</Text>
           </Pressable>
         </View>
@@ -291,6 +305,7 @@ export default function IncomeForm({ onSave, onCancel, initialData, currentDate 
             value={newExtra.description}
             onChangeText={(text) => setNewExtra({ ...newExtra, description: text })}
             placeholder="Descrição do extra"
+            testID="income-extra-description-input"
           />
           <TextInput
             style={styles.input}
@@ -298,18 +313,19 @@ export default function IncomeForm({ onSave, onCancel, initialData, currentDate 
             value={newExtra.amount.toString()}
             onChangeText={(text) => setNewExtra({ ...newExtra, amount: Number(text) || 0 })}
             placeholder="Valor"
+            testID="income-extra-amount-input"
           />
-          <Pressable style={styles.addButton} onPress={handleAddExtra}>
+          <Pressable style={styles.addButton} onPress={handleAddExtra} testID="income-add-extra-button">
             <Text style={styles.addButtonText}>Adicionar Extra</Text>
           </Pressable>
         </View>
       </View>
 
       <View style={styles.buttonContainer}>
-        <Pressable style={[styles.button, styles.cancelButton]} onPress={onCancel}>
+        <Pressable style={[styles.button, styles.cancelButton]} testID="income-cancel-button" onPress={onCancel}>
           <Text style={styles.buttonText}>Cancelar</Text>
         </Pressable>
-        <Pressable style={[styles.button, styles.saveButton]} onPress={handleSave}>
+        <Pressable style={[styles.button, styles.saveButton]} testID="income-save-button" onPress={handleSave}>
           <Text style={styles.buttonText}>Salvar</Text>
         </Pressable>
       </View>

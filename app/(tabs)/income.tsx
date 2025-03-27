@@ -134,10 +134,14 @@ export default function IncomeScreen() {
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Renda</Text>
-        <Pressable style={styles.addButton} onPress={() => {
-          setEditingIncome(null);
-          setShowForm(!showForm);
-        }}>
+        <Pressable 
+          style={styles.addButton} 
+          testID="add-income-button"
+          onPress={() => {
+            setEditingIncome(null);
+            setShowForm(true);
+          }}
+        >
           <Plus size={24} color="#ffffff" />
         </Pressable>
       </View>
@@ -147,7 +151,78 @@ export default function IncomeScreen() {
         onMonthChange={handleMonthChange} 
       />
 
-      {showForm ? (
+      <View style={styles.totalContainer}>
+        <View style={styles.totalBox}>
+          <Text style={styles.totalLabel}>Renda Total</Text>
+          <Text style={styles.totalValue} testID="income-total-value">R$ {calculateTotal()}</Text>
+        </View>
+        <View style={styles.totalBox}>
+          <Text style={styles.totalLabel}>Sua Renda</Text>
+          <Text style={styles.totalValue} testID="your-income-value">R$ {calculateYourTotal()}</Text>
+        </View>
+      </View>
+
+      <View style={styles.incomeList}>
+        {incomes.map((income) => {
+          const currentMonthExtras = income.monthlyExtras?.find(
+            m => m.month === currentDate.getMonth() && m.year === currentDate.getFullYear()
+          );
+          
+          return (
+            <View key={income.id} style={styles.incomeCard}>
+              <View style={styles.incomeHeader}>
+                <Text style={styles.personName}>{income.person}</Text>
+                <View style={styles.actionButtons}>
+                  <Pressable
+                    style={styles.actionButton}
+                    testID="edit-income-button"
+                    onPress={() => handleEditIncome(income)}
+                  >
+                    <Pencil size={20} color="#64748b" />
+                  </Pressable>
+                  <Pressable
+                    style={styles.actionButton}
+                    testID="delete-income-button"
+                    onPress={() => handleDeleteIncome(income)}
+                  >
+                    <Trash2 size={20} color="#64748b" />
+                  </Pressable>
+                </View>
+              </View>
+
+              <View style={styles.sourcesList}>
+                {income.sources.map((source) => (
+                  <View key={source.id} style={styles.sourceItem}>
+                    <View style={styles.sourceInfo}>
+                      <View style={[styles.sourceIcon, { backgroundColor: source.color }]}>
+                        {source.icon === 'Briefcase' && <Briefcase size={20} color="#ffffff" />}
+                        {source.icon === 'Building2' && <Building2 size={20} color="#ffffff" />}
+                        {source.icon === 'Coins' && <Coins size={20} color="#ffffff" />}
+                      </View>
+                      <Text style={styles.sourceName}>{source.name}</Text>
+                    </View>
+                    <Text style={styles.sourceAmount}>R$ {source.amount.toFixed(2)}</Text>
+                  </View>
+                ))}
+              </View>
+
+              {currentMonthExtras && currentMonthExtras.extras.length > 0 && (
+                <View style={styles.extrasContainer}>
+                  <Text style={styles.extrasTitle}>Extras do Mês</Text>
+                  {currentMonthExtras.extras.map((extra) => (
+                    <View key={extra.id} style={styles.extraItem}>
+                      <Text style={styles.extraDescription}>{extra.description}</Text>
+                      <Text style={styles.extraAmount}>R$ {extra.amount.toFixed(2)}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          );
+        })}
+      </View>
+
+      {showForm && (
         <IncomeForm
           onSave={handleSaveIncome}
           onCancel={() => {
@@ -157,77 +232,6 @@ export default function IncomeScreen() {
           initialData={editingIncome}
           currentDate={currentDate}
         />
-      ) : (
-        <>
-          <View style={styles.summary}>
-            <View style={styles.summaryCard}>
-              <Text style={styles.summaryLabel}>Renda Total</Text>
-              <Text style={styles.summaryValue}>R$ {calculateTotal()}</Text>
-            </View>
-            <View style={styles.summaryCard}>
-              <Text style={styles.summaryLabel}>Sua Renda</Text>
-              <Text style={styles.summaryValue}>R$ {calculateYourTotal()}</Text>
-            </View>
-          </View>
-
-          <View style={styles.incomeList}>
-            {incomes.map((income) => {
-              const currentMonthExtras = income.monthlyExtras?.find(
-                m => m.month === currentDate.getMonth() && m.year === currentDate.getFullYear()
-              );
-              
-              return (
-                <View key={income.id} style={styles.incomeCard}>
-                  <View style={styles.incomeHeader}>
-                    <Text style={styles.personName}>{income.person}</Text>
-                    <View style={styles.actionButtons}>
-                      <Pressable
-                        style={[styles.actionButton, styles.editButton]}
-                        onPress={() => handleEditIncome(income)}
-                      >
-                        <Pencil size={16} color="#ffffff" />
-                      </Pressable>
-                      <Pressable
-                        style={[styles.actionButton, styles.deleteButton]}
-                        onPress={() => handleDeleteIncome(income)}
-                      >
-                        <Trash2 size={16} color="#ffffff" />
-                      </Pressable>
-                    </View>
-                  </View>
-
-                  {income.sources.map((source) => (
-                    <View key={source.id} style={styles.sourceCard}>
-                      <View style={styles.sourceHeader}>
-                        <View style={[styles.iconContainer, { backgroundColor: source.color }]}>
-                          {source.icon === 'Briefcase' && <Briefcase size={24} color="#ffffff" />}
-                          {source.icon === 'Coins' && <Coins size={24} color="#ffffff" />}
-                          {source.icon === 'Building2' && <Building2 size={24} color="#ffffff" />}
-                        </View>
-                        <View style={styles.sourceInfo}>
-                          <Text style={styles.sourceName}>{source.name}</Text>
-                          <Text style={styles.sourceAmount}>R$ {source.amount}</Text>
-                        </View>
-                      </View>
-                    </View>
-                  ))}
-
-                  {currentMonthExtras && currentMonthExtras.extras.length > 0 && (
-                    <View style={styles.extrasContainer}>
-                      <Text style={styles.extrasTitle}>Extras do Mês</Text>
-                      {currentMonthExtras.extras.map((extra) => (
-                        <View key={extra.id} style={styles.extraCard}>
-                          <Text style={styles.extraDescription}>{extra.description}</Text>
-                          <Text style={styles.extraAmount}>R$ {extra.amount}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  )}
-                </View>
-              );
-            })}
-          </View>
-        </>
       )}
     </ScrollView>
   );
@@ -260,12 +264,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  summary: {
+  totalContainer: {
     flexDirection: 'row',
     padding: 20,
     gap: 16,
   },
-  summaryCard: {
+  totalBox: {
     flex: 1,
     backgroundColor: '#ffffff',
     padding: 16,
@@ -276,12 +280,12 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  summaryLabel: {
+  totalLabel: {
     fontSize: 14,
     color: '#64748b',
     marginBottom: 8,
   },
-  summaryValue: {
+  totalValue: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#1e293b',
@@ -311,17 +315,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1e293b',
   },
-  sourceCard: {
-    backgroundColor: '#f8fafc',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
+  sourcesList: {
+    marginBottom: 12,
   },
-  sourceHeader: {
+  sourceItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  sourceInfo: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  iconContainer: {
+  sourceIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -329,14 +335,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 12,
   },
-  sourceInfo: {
-    flex: 1,
-  },
   sourceName: {
     fontSize: 16,
     fontWeight: '600',
     color: '#1e293b',
-    marginBottom: 4,
   },
   sourceAmount: {
     fontSize: 16,
@@ -353,12 +355,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  editButton: {
-    backgroundColor: '#3b82f6',
-  },
-  deleteButton: {
-    backgroundColor: '#ef4444',
-  },
   extrasContainer: {
     marginTop: 12,
     padding: 12,
@@ -371,7 +367,7 @@ const styles = StyleSheet.create({
     color: '#64748b',
     marginBottom: 8,
   },
-  extraCard: {
+  extraItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',

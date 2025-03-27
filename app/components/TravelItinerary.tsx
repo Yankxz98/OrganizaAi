@@ -105,6 +105,7 @@ export default function TravelItinerary({ travel, onUpdate, colors }: TravelItin
 
   const saveActivity = () => {
     if (!newActivity.title || !selectedDay || !newActivity.startTime) {
+      Alert.alert('Erro', 'Título, dia e horário de início são obrigatórios');
       return;
     }
 
@@ -388,6 +389,7 @@ export default function TravelItinerary({ travel, onUpdate, colors }: TravelItin
               </Text>
               <Pressable 
                 style={[styles.addDayButton, { backgroundColor: colors.primary }]}
+                testID="itinerary-add-activity-button"
                 onPress={() => {
                   // Formatar a data manualmente para evitar problemas de fuso horário
                   const year = day.getFullYear();
@@ -414,9 +416,11 @@ export default function TravelItinerary({ travel, onUpdate, colors }: TravelItin
                       opacity: activity.completed ? 0.7 : 1
                     }
                   ]}
+                  testID={activity.completed ? 'itinerary-activity-completed' : 'itinerary-activity'}
                 >
                   <Pressable 
                     style={styles.completeButton}
+                    testID="itinerary-complete-button"
                     onPress={() => handleToggleComplete(activity)}
                   >
                     <View style={[
@@ -441,12 +445,14 @@ export default function TravelItinerary({ travel, onUpdate, colors }: TravelItin
                       <View style={styles.activityActions}>
                         <Pressable 
                           style={styles.actionButton}
+                          testID="itinerary-edit-button"
                           onPress={() => handleEditActivity(activity)}
                         >
                           <Edit2 size={16} color={colors.text.secondary} />
                         </Pressable>
                         <Pressable 
                           style={styles.actionButton}
+                          testID="itinerary-delete-button"
                           onPress={() => handleDeleteActivity(activity.id)}
                         >
                           <Trash2 size={16} color={colors.danger} />
@@ -570,6 +576,7 @@ export default function TravelItinerary({ travel, onUpdate, colors }: TravelItin
                   <Text style={[styles.label, { color: colors.text.secondary }]}>Horário Início</Text>
                   <Pressable 
                     style={[styles.timePickerButton, { backgroundColor: colors.card }]}
+                    testID="itinerary-start-time-picker"
                     onPress={() => setShowStartTimePicker(true)}
                   >
                     <Text style={[styles.timeText, { color: colors.text.primary }]}>
@@ -592,6 +599,7 @@ export default function TravelItinerary({ travel, onUpdate, colors }: TravelItin
                   <Text style={[styles.label, { color: colors.text.secondary }]}>Horário Fim</Text>
                   <Pressable 
                     style={[styles.timePickerButton, { backgroundColor: colors.card }]}
+                    testID="itinerary-end-time-picker"
                     onPress={() => setShowEndTimePicker(true)}
                   >
                     <Text style={[styles.timeText, { color: colors.text.primary }]}>
@@ -651,6 +659,7 @@ export default function TravelItinerary({ travel, onUpdate, colors }: TravelItin
             <View style={styles.modalButtons}>
               <Pressable 
                 style={[styles.modalButton, styles.cancelButton, { borderColor: colors.border }]}
+                testID="itinerary-cancel-button"
                 onPress={resetForm}
               >
                 <Text style={{ color: colors.text.primary }}>Cancelar</Text>
@@ -662,6 +671,7 @@ export default function TravelItinerary({ travel, onUpdate, colors }: TravelItin
                   styles.saveButton, 
                   { backgroundColor: colors.primary }
                 ]}
+                testID="itinerary-save-button"
                 onPress={saveActivity}
               >
                 <Text style={styles.saveButtonText}>
@@ -924,4 +934,58 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '600',
   },
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 12,
+  },
+  button: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  buttonText: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  dayButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+  },
+  dayButtonText: {
+    fontSize: 14,
+    marginLeft: 4,
+  },
+  timeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+  },
+  timeButtonText: {
+    fontSize: 14,
+    marginLeft: 4,
+  },
+  editButton: {
+    padding: 10,
+    borderRadius: 4,
+    backgroundColor: '#3b82f6',
+  },
+  deleteButton: {
+    padding: 10,
+    borderRadius: 4,
+    backgroundColor: '#dc2626',
+  },
+  completedActivity: {
+    opacity: 0.7,
+  }
 }); 
