@@ -224,8 +224,10 @@ export default function IncomeForm({ onSave, onCancel, initialData, currentDate 
   };
 
   return (
-    <ScrollView style={styles.container} testID="income-form">
-      <Text style={styles.title}>{initialData ? 'Editar Renda' : 'Nova Renda'}</Text>
+    <View style={styles.container} testID="income-form">
+      <View style={styles.header}>
+        <Text style={styles.title}>{initialData ? 'Editar Renda' : 'Nova Renda'}</Text>
+      </View>
       
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Pessoa</Text>
@@ -329,7 +331,7 @@ export default function IncomeForm({ onSave, onCancel, initialData, currentDate 
           <Text style={styles.buttonText}>Salvar</Text>
         </Pressable>
       </View>
-    </ScrollView>
+    </View>
   );
 }
 
@@ -340,11 +342,13 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     margin: 20,
   },
+  header: {
+    marginBottom: 20,
+  },
   title: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#1e293b',
-    marginBottom: 20,
   },
   inputGroup: {
     marginBottom: 16,

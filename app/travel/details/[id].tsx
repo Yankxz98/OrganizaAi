@@ -750,6 +750,16 @@ export default function TravelDetails() {
                       R$ {travel.budget.total.toFixed(2)}
                     </Text>
                   </View>
+
+                  <View style={[styles.budgetItem, { backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: 8, borderRadius: 6, marginTop: 4 }]}>
+                    <View style={styles.budgetLabelContainer}>
+                      <DollarSign size={14} color={colors.danger} style={{ marginRight: 4 }} />
+                      <Text style={[styles.budgetLabel, { color: colors.danger, fontWeight: 'bold' }]}>Total Planejado + Gastos Reais</Text>
+                    </View>
+                    <Text style={[styles.budgetValue, { color: colors.danger, fontWeight: 'bold' }]}>
+                      R$ {(calculateTotalEstimatedCosts() + travel.expenses.reduce((sum, exp) => sum + exp.amount, 0)).toFixed(2)}
+                    </Text>
+                  </View>
                 </View>
 
                 <View style={styles.budgetDivider} />
@@ -838,7 +848,7 @@ export default function TravelDetails() {
                       <View style={[styles.budgetItem, { backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: 8, borderRadius: 6, marginTop: 8 }]}>
                         <View style={styles.budgetLabelContainer}>
                           <CreditCard size={14} color={colors.danger} style={{ marginRight: 4 }} />
-                          <Text style={[styles.budgetLabel, { color: colors.text.primary, fontWeight: 'bold' }]}>Total Gasto</Text>
+                          <Text style={[styles.budgetLabel, { color: colors.text.primary, fontWeight: 'bold' }]}>Total Gasto Reais</Text>
                         </View>
                         <Text style={[styles.budgetValue, { color: colors.danger, fontWeight: 'bold' }]}>
                           R$ {travel.expenses.reduce((sum, exp) => sum + exp.amount, 0).toFixed(2)}

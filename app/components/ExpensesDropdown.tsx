@@ -34,7 +34,7 @@ export default function ExpensesDropdown({
       <Pressable style={styles.header} onPress={toggleDropdown}>
         <View>
           <Text style={styles.title}>Despesas Totais</Text>
-          <Text style={styles.totalValue}>{totalFormatted}</Text>
+          <Text style={styles.totalValue} testID="expenses-total-value">{totalFormatted}</Text>
         </View>
         {isOpen ? (
           <ChevronUp color="#64748b" size={24} />
@@ -47,11 +47,11 @@ export default function ExpensesDropdown({
         <View style={styles.content}>
           <View style={styles.expenseRow}>
             <Text style={styles.expenseType}>Despesas Fixas</Text>
-            <Text style={styles.expenseValue}>{fixedFormatted}</Text>
+            <Text style={styles.expenseValue} testID="fixed-expenses-value">{fixedFormatted}</Text>
           </View>
           <View style={[styles.expenseRow, styles.lastRow]}>
             <Text style={styles.expenseType}>Despesas Variáveis</Text>
-            <Text style={styles.expenseValue}>{variableFormatted}</Text>
+            <Text style={styles.expenseValue} testID="variable-expenses-value">{variableFormatted}</Text>
           </View>
         </View>
       )}

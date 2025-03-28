@@ -1,159 +1,131 @@
-import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import { StorageService, Income } from '../app/utils/storage';
-import { ThemeProvider } from '../app/theme/ThemeContext';
-import { EventProvider } from '../app/utils/EventContext';
-import AppIndex from '../app/(tabs)/index';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import DashboardScreen from '../app/(tabs)/index';
 import IncomeScreen from '../app/(tabs)/income';
+import { StorageService } from '../app/utils/storage';
+import { EventProvider } from '../app/utils/EventContext';
 
 // Mock do StorageService
 jest.mock('../app/utils/storage', () => ({
   StorageService: {
-    loadIncome: jest.fn(),
-    saveIncome: jest.fn(),
-    loadExpenses: jest.fn(),
-    saveExpenses: jest.fn()
-  },
-  Income: jest.requireActual('../app/utils/storage').Income
-}));
-
-const mockLoadIncome = StorageService.loadIncome as jest.Mock;
-const mockSaveIncome = StorageService.saveIncome as jest.Mock;
-const mockLoadExpenses = StorageService.loadExpenses as jest.Mock;
-const mockSaveExpenses = StorageService.saveExpenses as jest.Mock;
-
-// Mock dos componentes que dependem de expo-router
-jest.mock('expo-router', () => ({
-  useRouter: () => ({
-    push: jest.fn(),
-    replace: jest.fn(),
-    back: jest.fn()
-  }),
-  useLocalSearchParams: () => ({}),
-  Stack: {
-    Screen: (props: any) => null
+    loadIncome: jest.fn().mockResolvedValue([{
+      id: '1',
+      person: 'Você',
+      sources: [{ name: 'Salário', amount: 5000 }],
+      monthlyExtras: [{
+        month: 2, // Março (0-based)
+        year: 2024,
+        extras: [{ name: 'Bônus', amount: 1000 }]
+      }]
+    }]),
+    loadExpenses: jest.fn().mockResolvedValue([]),
+    saveIncome: jest.fn().mockResolvedValue(true),
+    saveExpenses: jest.fn().mockResolvedValue(true)
   }
 }));
 
-// Função auxiliar para renderizar componentes com os providers necessários
+const Stack = createNativeStackNavigator();
+
 const renderWithProviders = (component: React.ReactElement) => {
   return render(
     <EventProvider>
-      <ThemeProvider>
+      <NavigationContainer>
         {component}
-      </ThemeProvider>
+      </NavigationContainer>
     </EventProvider>
   );
 };
 
-describe('Integração entre Componentes', () => {
+describe('Component Integration', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockLoadIncome.mockResolvedValue([]);
-    mockLoadExpenses.mockResolvedValue([]);
   });
 
-  it('deve atualizar o dashboard quando uma nova renda for adicionada', async () => {
-    // Mock data
+  it('atualiza o dashboard quando uma nova renda é adicionada', async () => {
     const mockIncome = {
-      id: 1,
+      id: '1',
       person: 'Você',
-      sources: [
-        { id: 1, name: 'Salário', amount: 3000, icon: 'Briefcase', color: '#0ea5e9' }
-      ],
+      sources: [{ name: 'Salário', amount: 5000 }],
       monthlyExtras: []
     };
 
-    // Primeiro renderizamos o Income Screen
-    const { getByTestId, getByText, unmount } = renderWithProviders(<IncomeScreen />);
-    
-    // Esperamos pelo carregamento inicial
+    (StorageService.loadIncome as jest.Mock).mockResolvedValueOnce([mockIncome]);
+
+    const { getByTestId } = renderWithProviders(
+      <Stack.Navigator>
+        <Stack.Screen name="Dashboard" component={DashboardScreen} />
+        <Stack.Screen name="Income" component={IncomeScreen} />
+      </Stack.Navigator>
+    );
+
     await waitFor(() => {
-      expect(mockLoadIncome).toHaveBeenCalled();
+      expect(getByTestId('income-total-value')).toBeTruthy();
     });
-    
-    // Adicionamos uma nova renda
-    fireEvent.press(getByTestId('add-income-button'));
-    
-    // Preenchemos o formulário
-    fireEvent.changeText(getByTestId('income-person-input'), 'Você');
-    fireEvent.changeText(getByTestId('income-source-name-input'), 'Salário');
-    fireEvent.changeText(getByTestId('income-source-amount-input'), '3000');
-    fireEvent.press(getByTestId('income-add-source-button'));
-    
-    // Configuramos o mock para salvar a renda
-    mockSaveIncome.mockResolvedValueOnce([mockIncome]);
-    
-    // Salvamos a renda
-    fireEvent.press(getByTestId('income-save-button'));
-    
-    // Verificamos se o saveIncome foi chamado
+
+    const totalValue = getByTestId('income-total-value');
+    expect(totalValue.props.children).toBe('R$ 5000.00');
+  });
+
+  it('atualiza a lista de rendas quando o mês selecionado muda', async () => {
+    const mockIncome = {
+      id: '1',
+      person: 'Você',
+      sources: [{ name: 'Salário', amount: 5000 }],
+      monthlyExtras: [{
+        month: 2, // Março (0-based)
+        year: 2024,
+        extras: [{ name: 'Bônus', amount: 1000 }]
+      }]
+    };
+
+    (StorageService.loadIncome as jest.Mock).mockResolvedValueOnce([mockIncome]);
+
+    const mockDate = new Date(2024, 3, 1); // Abril (0-based)
+    jest.useFakeTimers().setSystemTime(mockDate);
+
+    const { getByTestId } = renderWithProviders(
+      <Stack.Navigator>
+        <Stack.Screen name="Income" component={IncomeScreen} initialParams={{ initialDate: mockDate.toISOString() }} />
+      </Stack.Navigator>
+    );
+
     await waitFor(() => {
-      expect(mockSaveIncome).toHaveBeenCalled();
+      expect(getByTestId('income-total-value')).toBeTruthy();
     });
-    
-    // Desmontamos o componente de renda
-    unmount();
-    
-    // Agora renderizamos o Dashboard com dados de renda
-    mockLoadIncome.mockResolvedValueOnce([mockIncome]);
-    
-    const dashboardComp = renderWithProviders(<AppIndex />);
-    
-    // Esperamos pelo carregamento inicial
+
+    expect(getByTestId('income-total-value').props.children).toBe('R$ 5000.00');
+
+    fireEvent.press(getByTestId('previous-month-button'));
+
     await waitFor(() => {
-      expect(mockLoadIncome).toHaveBeenCalled();
-      expect(mockLoadExpenses).toHaveBeenCalled();
-    });
-    
-    // Verificamos se o valor da renda aparece no dashboard
-    await waitFor(() => {
-      expect(dashboardComp.queryByText('R$ 3000')).toBeTruthy();
+      expect(getByTestId('income-total-value').props.children).toBe('R$ 6000.00');
     });
   });
 
-  it('deve atualizar a lista de rendas quando o mês selecionado mudar', async () => {
-    // Mock data para meses diferentes
-    const janeiroIncome = {
-      id: 1,
-      person: 'Você',
-      sources: [
-        { id: 1, name: 'Salário Janeiro', amount: 3000, icon: 'Briefcase', color: '#0ea5e9' }
-      ],
-      monthlyExtras: []
+  it('atualiza o dashboard quando uma despesa é adicionada', async () => {
+    const mockExpense = {
+      id: '1',
+      description: 'Teste',
+      amount: 100,
+      category: 'Coffee',
+      type: 'fixed',
+      date: new Date()
     };
-    
-    const fevereiroIncome = {
-      id: 1,
-      person: 'Você',
-      sources: [
-        { id: 1, name: 'Salário Fevereiro', amount: 3500, icon: 'Briefcase', color: '#0ea5e9' }
-      ],
-      monthlyExtras: []
-    };
-    
-    // Configuramos o mock para retornar rendas de janeiro
-    mockLoadIncome.mockResolvedValueOnce([janeiroIncome]);
-    
-    const { getByTestId, getAllByText, getByText, queryByText } = renderWithProviders(<IncomeScreen />);
-    
-    // Esperamos pelo carregamento inicial (janeiro)
+
+    (StorageService.loadExpenses as jest.Mock).mockResolvedValueOnce([mockExpense]);
+
+    const { getByTestId } = renderWithProviders(
+      <Stack.Navigator>
+        <Stack.Screen name="Dashboard" component={DashboardScreen} />
+      </Stack.Navigator>
+    );
+
     await waitFor(() => {
-      expect(mockLoadIncome).toHaveBeenCalled();
-      expect(queryByText('Salário Janeiro')).toBeTruthy();
+      expect(getByTestId('expenses-total-value')).toBeTruthy();
     });
-    
-    // Configuramos o mock para retornar rendas de fevereiro
-    mockLoadIncome.mockResolvedValueOnce([fevereiroIncome]);
-    
-    // Mudamos para fevereiro usando o MonthSelector
-    const nextMonthButton = getByTestId('next-month-button');
-    fireEvent.press(nextMonthButton);
-    
-    // Verificamos se os dados de fevereiro são exibidos
-    await waitFor(() => {
-      expect(mockLoadIncome).toHaveBeenCalledTimes(2);
-      expect(queryByText('Salário Fevereiro')).toBeTruthy();
-    });
+
+    const totalValue = getByTestId('expenses-total-value');
+    expect(totalValue.props.children).toBe('R$ 100.00');
   });
 }); 

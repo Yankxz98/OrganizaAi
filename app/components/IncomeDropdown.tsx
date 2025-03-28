@@ -28,7 +28,7 @@ export default function IncomeDropdown({
       <Pressable style={styles.header} onPress={toggleDropdown}>
         <View>
           <Text style={styles.title}>Renda Total</Text>
-          <Text style={styles.totalValue}>{formatCurrency(totalIncome)}</Text>
+          <Text style={styles.totalValue} testID="income-total-value">{formatCurrency(totalIncome)}</Text>
         </View>
         <View style={styles.headerRight}>
           <ArrowUpRight color="#22c55e" size={20} style={styles.icon} />
@@ -44,11 +44,11 @@ export default function IncomeDropdown({
         <View style={styles.content}>
           <View style={styles.incomeRow}>
             <Text style={styles.incomeType}>Renda Base</Text>
-            <Text style={styles.incomeValue}>{formatCurrency(baseIncome)}</Text>
+            <Text style={styles.incomeValue} testID="base-income-value">{formatCurrency(baseIncome)}</Text>
           </View>
           <View style={[styles.incomeRow, styles.lastRow]}>
             <Text style={styles.incomeType}>Extras do Mês</Text>
-            <Text style={styles.incomeValue}>{formatCurrency(extrasIncome)}</Text>
+            <Text style={styles.incomeValue} testID="extras-income-value">{formatCurrency(extrasIncome)}</Text>
           </View>
         </View>
       )}

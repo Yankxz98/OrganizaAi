@@ -7,12 +7,16 @@ import MonthSelector from '../components/MonthSelector';
 import { useEvent } from '../utils/EventContext';
 import { useRouter } from 'expo-router';
 
-export default function IncomeScreen() {
+interface IncomeScreenProps {
+  initialDate?: string;
+}
+
+export default function IncomeScreen({ initialDate }: IncomeScreenProps) {
   const router = useRouter();
   const [incomes, setIncomes] = useState<Income[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingIncome, setEditingIncome] = useState<Income | null>(null);
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentDate, setCurrentDate] = useState(initialDate ? new Date(initialDate) : new Date());
   const { triggerEvent, subscribeToEvent } = useEvent();
 
   const loadIncomes = useCallback(async () => {
@@ -135,6 +139,10 @@ export default function IncomeScreen() {
     return baseTotal + extrasTotal;
   };
 
+  const formatCurrency = (value: number) => {
+    return `R$ ${value.toFixed(2)}`;
+  };
+
   return (
     <>
       <ScrollView style={styles.container}>
@@ -160,11 +168,11 @@ export default function IncomeScreen() {
         <View style={styles.totalContainer}>
           <View style={styles.totalBox}>
             <Text style={styles.totalLabel}>Renda Total</Text>
-            <Text style={styles.totalValue} testID="income-total-value">R$ {calculateTotal()}</Text>
+            <Text style={styles.totalValue} testID="income-total-value">{formatCurrency(calculateTotal())}</Text>
           </View>
           <View style={styles.totalBox}>
             <Text style={styles.totalLabel}>Sua Renda</Text>
-            <Text style={styles.totalValue} testID="your-income-value">R$ {calculateYourTotal()}</Text>
+            <Text style={styles.totalValue} testID="your-income-value">{formatCurrency(calculateYourTotal())}</Text>
           </View>
         </View>
 
@@ -187,7 +195,7 @@ export default function IncomeScreen() {
                       <Pencil size={20} color="#64748b" />
                     </Pressable>
                     <Pressable
-                      style={styles.actionButton}
+                      style={[styles.actionButton, { marginLeft: 8 }]}
                       testID="delete-income-button"
                       onPress={() => handleDeleteIncome(income)}
                     >
