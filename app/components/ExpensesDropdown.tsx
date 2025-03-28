@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, Animated } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { ChevronDown, ChevronUp } from 'lucide-react-native';
 
 interface ExpensesDropdownProps {

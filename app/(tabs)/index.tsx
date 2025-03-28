@@ -1,7 +1,7 @@
+import { Wallet } from 'lucide-react-native';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import { ArrowUpRight, ArrowDownRight, Wallet } from 'lucide-react-native';
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { StorageService, MonthlyData, Income, Expense } from '../utils/storage';
+import { StorageService, MonthlyData } from '../utils/storage';
 import MonthSelector from '../components/MonthSelector';
 import ExpensesDropdown from '../components/ExpensesDropdown';
 import IncomeDropdown from '../components/IncomeDropdown';

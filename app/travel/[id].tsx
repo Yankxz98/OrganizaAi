@@ -70,7 +70,6 @@ export default function TravelForm() {
 
       await StorageService.saveTravel(travel);
       triggerEvent('TRAVEL_UPDATED');
-      router.back();
     } catch (error) {
       console.error('Error saving travel:', error);
       Alert.alert('Erro', 'Ocorreu um erro ao salvar a viagem');

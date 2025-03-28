@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useRef } from 'react';
 
 type EventType = 'EXPENSE_UPDATED' | 'INCOME_UPDATED' | 'TRAVEL_UPDATED';
 

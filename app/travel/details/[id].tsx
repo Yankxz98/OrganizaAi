@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert, Platform, StatusBar, Animated, Keyboard, KeyboardAvoidingView, TouchableWithoutFeedback } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert, Platform, StatusBar, Animated, Keyboard, KeyboardAvoidingView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme/ThemeContext';
 import { Travel, TravelExpense as BaseTravelExpense, TravelActivity, StorageService } from '../../utils/storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Plus, Edit2, ArrowLeft, Calendar, MapPin, DollarSign, Wallet, Briefcase, CreditCard, TrendingDown, TrendingUp, X, Check, Trash2 } from 'lucide-react-native';
+import { Plus, Edit2, ArrowLeft, Calendar, DollarSign, Wallet, Briefcase, CreditCard, TrendingDown, TrendingUp, X, Check, Trash2 } from 'lucide-react-native';
 import TravelItinerary from '../../components/TravelItinerary';
 import { useEvent } from '../../utils/EventContext';
 

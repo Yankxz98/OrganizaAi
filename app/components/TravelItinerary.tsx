@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, TextInput, Alert, ScrollView, Modal, Platform, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Plus, MapPin, Clock, Calendar, Edit2, Trash2, Check, ChevronDown } from 'lucide-react-native';
+import { Plus, MapPin, Clock, Calendar, Edit2, Trash2, Check, X } from 'lucide-react-native';
 import { Travel, TravelActivity, StorageService } from '../utils/storage';
 import { useEvent } from '../utils/EventContext';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { AntDesign } from '@expo/vector-icons';
 
 interface TravelItineraryProps {
@@ -282,13 +282,8 @@ export default function TravelItinerary({ travel, onUpdate, colors }: TravelItin
     setShowEndTimePicker(false);
   };
 
-  const formatDate = (date: Date) => {
-    const options: Intl.DateTimeFormatOptions = { 
-      weekday: 'long', 
-      day: 'numeric', 
-      month: 'long' 
-    };
-    return date.toLocaleDateString('pt-BR', options);
+  const formatDate = (dateString: string) => {
+    return new Intl.DateTimeFormat('pt-BR').format(new Date(dateString));
   };
 
   const getCategoryLabel = (category: string) => {
@@ -354,7 +349,7 @@ export default function TravelItinerary({ travel, onUpdate, colors }: TravelItin
   };
 
   // Manipuladores para os seletores de horário
-  const handleStartTimeChange = (event: any, selectedDate?: Date) => {
+  const handleStartTimeChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
     setShowStartTimePicker(Platform.OS === 'ios');
     if (selectedDate) {
       setNewActivity(prev => ({
@@ -364,7 +359,7 @@ export default function TravelItinerary({ travel, onUpdate, colors }: TravelItin
     }
   };
 
-  const handleEndTimeChange = (event: any, selectedDate?: Date) => {
+  const handleEndTimeChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
     setShowEndTimePicker(Platform.OS === 'ios');
     if (selectedDate) {
       setNewActivity(prev => ({
@@ -385,7 +380,7 @@ export default function TravelItinerary({ travel, onUpdate, colors }: TravelItin
           <View key={index} style={styles.daySection}>
             <View style={styles.dayHeader}>
               <Text style={[styles.dayTitle, { color: colors.text.primary }]}>
-                {formatDate(day)}
+                {formatDate(day.toISOString())}
               </Text>
               <Pressable 
                 style={[styles.addDayButton, { backgroundColor: colors.primary }]}

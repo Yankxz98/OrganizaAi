@@ -95,7 +95,7 @@ export default function DatePickerModal({
               value={selectedDate}
               mode={mode}
               display="spinner"
-              onChange={(event, date) => date && setSelectedDate(date)}
+              onChange={(_, date) => date && setSelectedDate(date)}
               minimumDate={minimumDate}
               maximumDate={maximumDate}
               textColor={colors.text.primary}
