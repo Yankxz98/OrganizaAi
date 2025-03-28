@@ -59,7 +59,6 @@ export default function DatePickerModal({
     }
   };
 
-  // No Android, o DateTimePicker já é um modal
   if (Platform.OS === 'android') {
     if (!isVisible) return null;
     
@@ -75,7 +74,6 @@ export default function DatePickerModal({
     );
   }
 
-  // No iOS, precisamos criar nosso próprio modal
   return (
     <Modal
       visible={isVisible}

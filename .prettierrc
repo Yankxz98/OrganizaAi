@@ -2,5 +2,13 @@
   "useTabs": false,
   "bracketSpacing": true,
   "singleQuote": true,
-  "tabWidth": 2
+  "tabWidth": 2,
+  "trailingComma": "es5",
+  "printWidth": 100,
+  "arrowParens": "avoid",
+  "endOfLine": "auto",
+  "jsxSingleQuote": false,
+  "quoteProps": "as-needed",
+  "htmlWhitespaceSensitivity": "css",
+  "embeddedLanguageFormatting": "auto"
 }

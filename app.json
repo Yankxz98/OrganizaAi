@@ -5,23 +5,30 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "organizaai",
-    "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/images/Load.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.roteirize.app",
+      "buildNumber": "1"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.organizaai.app",
-      "versionCode": 1
+      "package": "com.roteirize.app",
+      "versionCode": 1,
+      "permissions": []
     },
     "web": {
-      "bundler": "metro",
-      "output": "single",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
@@ -31,12 +38,16 @@
       "typedRoutes": true
     },
     "extra": {
-      "router": {
-        "origin": false
-      },
       "eas": {
         "projectId": "5070d46e-4002-47a1-a3f4-b861a0aa57e9"
       }
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/5070d46e-4002-47a1-a3f4-b861a0aa57e9"
+    },
+    "runtimeVersion": {
+      "policy": "sdkVersion"
     }
   }
 }

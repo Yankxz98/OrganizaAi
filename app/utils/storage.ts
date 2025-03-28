@@ -261,10 +261,8 @@ export const StorageService = {
   // Clear all data
   async clearAllData() {
     try {
-      // Obter todas as chaves do AsyncStorage
       const allKeys = await AsyncStorage.getAllKeys();
       
-      // Remover todas as chaves
       if (allKeys.length > 0) {
         await AsyncStorage.multiRemove(allKeys);
       }

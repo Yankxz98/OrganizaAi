@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Expense, StorageService } from '../utils/storage';
 import ExpenseForm from '../components/ExpenseForm';
@@ -19,7 +19,6 @@ export default function AddExpenseScreen() {
     : new Date();
 
   useEffect(() => {
-    // Se tiver um ID, carrega os dados para edição apenas uma vez
     const loadExpenseData = async () => {
       if (expenseId && !dataLoaded) {
         try {
@@ -27,19 +26,23 @@ export default function AddExpenseScreen() {
           const expense = expenses.find(e => e.id === Number(expenseId));
           if (expense) {
             setInitialData(expense);
+            setDataLoaded(true);
           }
-          setDataLoaded(true);
         } catch (error) {
           console.error('Erro ao carregar despesa:', error);
-          setDataLoaded(true);
         }
       }
     };
 
     loadExpenseData();
-  }, [expenseId, currentDate, dataLoaded]);
+  }, [expenseId, dataLoaded, currentDate]);
 
   const handleSave = async (expense: Expense) => {
+    if (!expense.description || !expense.amount) {
+      Alert.alert('Erro', 'Por favor, preencha todos os campos obrigatórios');
+      return;
+    }
+
     try {
       let newExpenses;
       const expenses = await StorageService.loadExpenses(currentDate);
@@ -79,7 +82,8 @@ export default function AddExpenseScreen() {
             const futureDate = new Date(currentDate);
             futureDate.setMonth(currentDate.getMonth() + (i - expense.installments.current));
             
-            const installment: Expense = {
+            const futureExpenses = await StorageService.loadExpenses(futureDate);
+            const futureExpense = {
               ...expense,
               id: Date.now() + i,
               amount: amountPerInstallment,
@@ -89,7 +93,7 @@ export default function AddExpenseScreen() {
               }
             };
             
-            await StorageService.saveExpenses([installment], futureDate, true);
+            await StorageService.saveExpenses([...futureExpenses, futureExpense], futureDate);
           }
         }
         
@@ -107,7 +111,8 @@ export default function AddExpenseScreen() {
             const futureDate = new Date(currentDate);
             futureDate.setMonth(currentDate.getMonth() + (i - 1));
             
-            const installment: Expense = {
+            const futureExpenses = await StorageService.loadExpenses(futureDate);
+            const futureExpense = {
               ...expense,
               id: Date.now() + i,
               amount: amountPerInstallment,
@@ -117,7 +122,7 @@ export default function AddExpenseScreen() {
               }
             };
             
-            await StorageService.saveExpenses([installment], futureDate, true);
+            await StorageService.saveExpenses([...futureExpenses, futureExpense], futureDate);
           }
         }
         newExpenses = [...expenses, expense];
@@ -134,6 +139,7 @@ export default function AddExpenseScreen() {
       router.back();
     } catch (error) {
       console.error('Erro ao salvar despesa:', error);
+      Alert.alert('Erro', 'Ocorreu um erro ao salvar a despesa');
     }
   };
 

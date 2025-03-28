@@ -11,6 +11,34 @@ module.exports = {
     '!**/coverage/**',
     '!**/node_modules/**',
     '!**/babel.config.js',
-    '!**/jest.setup.js'
-  ]
+    '!**/jest.setup.js',
+    '!**/jest.config.js',
+    '!**/metro.config.js',
+    '!**/tsconfig.json'
+  ],
+  coverageThreshold: {
+    global: {
+      branches: 80,
+      functions: 80,
+      lines: 80,
+      statements: 80
+    }
+  },
+  testEnvironment: 'node',
+  testMatch: ['**/__tests__/**/*.[jt]s?(x)', '**/?(*.)+(spec|test).[jt]s?(x)'],
+  testPathIgnorePatterns: ['/node_modules/', '/coverage/'],
+  verbose: false,
+  maxWorkers: '50%',
+  cacheDirectory: '.jest-cache',
+  moduleNameMapper: {
+    '^@/(.*)$': '<rootDir>/$1'
+  },
+  transform: {
+    '^.+\\.(js|jsx|ts|tsx)$': 'babel-jest'
+  },
+  globals: {
+    'ts-jest': {
+      tsconfig: 'tsconfig.json'
+    }
+  }
 }; 

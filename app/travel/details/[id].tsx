@@ -1043,9 +1043,7 @@ export default function TravelDetails() {
                           style={[styles.expenseInput, { color: colors.text.primary }]}
                           value={newExpense.amount?.toString()}
                           onChangeText={amount => {
-                            // Permitir números, vírgula e ponto
                             const sanitizedAmount = amount.replace(/[^0-9,.]/g, '');
-                            // Substituir vírgula por ponto para cálculo
                             const numericAmount = Number(sanitizedAmount.replace(',', '.')) || 0;
                             setNewExpense(prev => ({ ...prev, amount: numericAmount }));
                           }}
@@ -1174,9 +1172,7 @@ export default function TravelDetails() {
                           style={[styles.expenseInput, { color: colors.text.primary }]}
                           value={newPlannedExpense.amount?.toString()}
                           onChangeText={amount => {
-                            // Permitir números, vírgula e ponto
                             const sanitizedAmount = amount.replace(/[^0-9,.]/g, '');
-                            // Substituir vírgula por ponto para cálculo
                             const numericAmount = Number(sanitizedAmount.replace(',', '.')) || 0;
                             setNewPlannedExpense(prev => ({ ...prev, amount: numericAmount }));
                           }}
