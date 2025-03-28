@@ -31,8 +31,10 @@
     "plugins": [
       "expo-router"
     ],
+    "scheme": "roteirize",
     "experiments": {
-      "typedRoutes": true
+      "typedRoutes": true,
+      "tsconfigPaths": true
     },
     "extra": {
       "router": {
