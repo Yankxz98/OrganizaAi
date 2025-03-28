@@ -16,17 +16,14 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.roteirize.app",
-      "buildNumber": "1"
+      "bundleIdentifier": "com.roteirize.app"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.roteirize.app",
-      "versionCode": 1,
-      "permissions": []
+      "package": "com.roteirize.app"
     },
     "web": {
       "favicon": "./assets/images/favicon.png"
@@ -38,16 +35,12 @@
       "typedRoutes": true
     },
     "extra": {
+      "router": {
+        "origin": false
+      },
       "eas": {
-        "projectId": "5070d46e-4002-47a1-a3f4-b861a0aa57e9"
+        "projectId": "03591acc-28a7-485a-b2a9-d19dbec04b74"
       }
-    },
-    "updates": {
-      "fallbackToCacheTimeout": 0,
-      "url": "https://u.expo.dev/5070d46e-4002-47a1-a3f4-b861a0aa57e9"
-    },
-    "runtimeVersion": {
-      "policy": "sdkVersion"
     }
   }
 }

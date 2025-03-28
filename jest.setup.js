@@ -1,4 +1,4 @@
-import '@testing-library/jest-native';
+import '@testing-library/jest-native/extend-expect';
 
 // Configuração global do Jest
 jest.setTimeout(10000); // Timeout global de 10 segundos
@@ -17,9 +17,8 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
 
 // Mock do DateTimePicker
 jest.mock('@react-native-community/datetimepicker', () => ({
-  __esModule: true,
-  default: jest.fn(),
-  getDefaultMode: jest.fn(),
+  show: jest.fn(),
+  dismiss: jest.fn(),
   getDefaultDisplayValue: jest.fn(),
 }));
 
@@ -33,26 +32,24 @@ jest.mock('expo-router', () => ({
     canGoBack: jest.fn(),
   }),
   useLocalSearchParams: () => ({}),
-  usePathname: () => '',
   useSegments: () => [],
   useRootNavigation: () => ({
     navigate: jest.fn(),
     goBack: jest.fn(),
     canGoBack: jest.fn(),
   }),
+  Link: jest.fn(),
+  Stack: {
+    Screen: jest.fn(),
+  },
+  Tabs: {
+    Screen: jest.fn(),
+  },
 }));
 
 // Mock do Expo Constants
 jest.mock('expo-constants', () => ({
-  default: {
-    expoConfig: {
-      extra: {
-        eas: {
-          projectId: 'test-project-id'
-        }
-      }
-    }
-  }
+  projectId: 'test-project-id',
 }));
 
 // Mock do Expo Linking
@@ -68,18 +65,19 @@ jest.mock('react-native', () => {
   return {
     ...RN,
     Alert: {
+      ...RN.Alert,
       alert: jest.fn(),
       prompt: jest.fn(),
     },
   };
 });
 
-// Limpar todos os mocks após cada teste
+// Limpeza de mocks após cada teste
 afterEach(() => {
   jest.clearAllMocks();
 });
 
-// Configuração do console para testes
+// Mock de console para evitar output durante os testes
 const originalConsole = { ...console };
 beforeAll(() => {
   console.log = jest.fn();
