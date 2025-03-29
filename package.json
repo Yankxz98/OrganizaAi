@@ -11,7 +11,9 @@
     "build:android": "npx eas-cli build --platform android --local",
     "build:apk": "npx eas-cli build -p android --profile preview --local",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "android": "expo run:android",
+    "ios": "expo run:ios"
   },
   "dependencies": {
     "@expo/vector-icons": "^14.0.2",
