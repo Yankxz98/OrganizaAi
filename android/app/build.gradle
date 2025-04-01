@@ -86,13 +86,23 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.organizaai.app'
+    kotlinOptions {
+        jvmTarget = "1.8"
+    }
+    buildFeatures {
+        buildConfig true
+    }
+    namespace "com.organizaai.app"
     defaultConfig {
         applicationId 'com.organizaai.app'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0.0"
+    }
+    composeOptions {
+        kotlinCompilerExtensionVersion "1.5.15"
+        suppressKotlinVersionCompatibilityCheck true
     }
     signingConfigs {
         debug {
