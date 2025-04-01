@@ -8,6 +8,11 @@
     "scheme": "organizaai",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
     "ios": {
       "supportsTablet": true
     },
@@ -17,8 +22,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.organizaai.app",
-      "versionCode": 1,
-      "suppressKotlinVersionCompatibilityCheck": true
+      "versionCode": 1
     },
     "web": {
       "bundler": "metro",
