@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, ScrollView, Pressable, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, TextInput, ScrollView, Pressable, Alert, Platform, KeyboardAvoidingView } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { Travel, TravelExpense, StorageService } from '../utils/storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -105,7 +105,15 @@ export default function TravelForm() {
   };
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
+    <KeyboardAvoidingView 
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView 
+        style={[styles.container, { backgroundColor: colors.background }]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
       <View style={styles.form}>
         <Text style={[styles.label, { color: colors.text.secondary }]}>Nome da Viagem</Text>
         <TextInput
@@ -173,7 +181,8 @@ export default function TravelForm() {
           <Text style={styles.saveButtonText}>Salvar</Text>
         </Pressable>
       </View>
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

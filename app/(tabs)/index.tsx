@@ -6,6 +6,7 @@ import MonthSelector from '../components/MonthSelector';
 import ExpensesDropdown from '../components/ExpensesDropdown';
 import IncomeDropdown from '../components/IncomeDropdown';
 import { useEvent } from '../utils/EventContext';
+import { FinancingService } from '../utils/FinancingService';
 
 export default function HomeScreen() {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -113,10 +114,28 @@ export default function HomeScreen() {
     }
   }, []); // Remover a dependência de currentDate
 
+  // Função para verificar financiamentos
+  const checkFinancings = useCallback(async () => {
+    try {
+      const renewals = await FinancingService.checkFinancingRenewals();
+      renewals.forEach(renewal => {
+        if (!renewal.expense.financing?.reminderSent) {
+          FinancingService.showRenewalAlert(renewal);
+          // Marcar como aviso enviado
+          FinancingService.markReminderSent(renewal.expense);
+        }
+      });
+    } catch (error) {
+      console.error('Erro ao verificar financiamentos:', error);
+    }
+  }, []);
+
   // Efeito para carregar dados quando a data mudar
   useEffect(() => {
     loadData();
-  }, [currentDate]); // Manter currentDate aqui para recarregar quando a data mudar
+    // Verificar financiamentos a cada carregamento do dashboard
+    checkFinancings();
+  }, [currentDate, loadData, checkFinancings]); // Manter currentDate aqui para recarregar quando a data mudar
 
   // Efeito separado para inscrever nos eventos
   useEffect(() => {

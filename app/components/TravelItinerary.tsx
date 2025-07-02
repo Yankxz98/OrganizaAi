@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, TextInput, Alert, ScrollView, Modal, Platform, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, Pressable, TextInput, Alert, ScrollView, Modal, Platform, StatusBar, KeyboardAvoidingView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Plus, MapPin, Clock, Calendar, Edit2, Trash2, Check, ChevronDown } from 'lucide-react-native';
 import { Travel, TravelActivity, StorageService } from '../utils/storage';
@@ -508,13 +508,21 @@ export default function TravelItinerary({ travel, onUpdate, colors }: TravelItin
         animationType="slide"
         onRequestClose={() => setShowAddModal(false)}
       >
-        <View style={styles.modalContainer}>
-          <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
-            <Text style={[styles.modalTitle, { color: colors.text.primary }]}>
-              {editingActivity ? 'Editar Atividade' : 'Nova Atividade'}
-            </Text>
-            
-            <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
+        <KeyboardAvoidingView 
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <View style={styles.modalContainer}>
+            <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
+              <Text style={[styles.modalTitle, { color: colors.text.primary }]}>
+                {editingActivity ? 'Editar Atividade' : 'Nova Atividade'}
+              </Text>
+              
+              <ScrollView 
+                style={styles.modalScroll} 
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+              >
               <View style={styles.formGroup}>
                 <Text style={[styles.label, { color: colors.text.secondary }]}>Dia</Text>
                 <View style={[styles.pickerContainer, { backgroundColor: colors.card }]}>
@@ -680,7 +688,8 @@ export default function TravelItinerary({ travel, onUpdate, colors }: TravelItin
               </Pressable>
             </View>
           </View>
-        </View>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );

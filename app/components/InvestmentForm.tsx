@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, Pressable, ScrollView } from 'react-native';
+import { View, Text, TextInput, StyleSheet, Pressable, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { Investment } from '../utils/storage';
 
 interface InvestmentFormProps {
@@ -40,7 +40,15 @@ export default function InvestmentForm({ onSave, onCancel }: InvestmentFormProps
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <KeyboardAvoidingView 
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView 
+        style={styles.container}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
       <Text style={styles.title}>Novo Investimento</Text>
       
       <View style={styles.inputGroup}>
@@ -113,7 +121,8 @@ export default function InvestmentForm({ onSave, onCancel }: InvestmentFormProps
           <Text style={styles.buttonText}>Salvar</Text>
         </Pressable>
       </View>
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

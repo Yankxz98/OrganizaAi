@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, StyleSheet, Pressable, ScrollView, Alert } from 'react-native';
+import { View, Text, TextInput, StyleSheet, Pressable, Alert, Switch, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Expense } from '../utils/storage';
 import { EXPENSE_CATEGORIES } from '../utils/constants';
 import { Coffee, ShoppingBag, Car, Heart, User, Package } from 'lucide-react-native';
+import MonthYearPicker from './MonthYearPicker';
 
 interface ExpenseFormProps {
   onSave: (expense: Expense) => void;
@@ -48,6 +49,22 @@ export default function ExpenseForm({ onSave, onCancel, initialData }: ExpenseFo
     return initialData?.installments ? initialData.installments.total.toString() : '1';
   });
   
+  const [isFinancing, setIsFinancing] = useState(() => {
+    return initialData?.financing ? true : false;
+  });
+  
+  const [financingData, setFinancingData] = useState(() => {
+    const currentDate = new Date();
+    return {
+      startMonth: initialData?.financing?.startMonth ?? currentDate.getMonth(),
+      startYear: initialData?.financing?.startYear ?? currentDate.getFullYear(),
+      endMonth: initialData?.financing?.endMonth ?? currentDate.getMonth(),
+      endYear: initialData?.financing?.endYear ?? currentDate.getFullYear(),
+      monthlyAmount: initialData?.financing?.monthlyAmount ?? 0,
+      totalAmount: initialData?.financing?.totalAmount ?? 0
+    };
+  });
+  
   const [initialized, setInitialized] = useState(false);
   const router = useRouter();
 
@@ -67,8 +84,52 @@ export default function ExpenseForm({ onSave, onCancel, initialData }: ExpenseFo
       return;
     }
 
+    // Validações específicas para financiamento
+    if (isFinancing && expense.type === 'fixed') {
+      if (financingData.monthlyAmount <= 0) {
+        Alert.alert('Atenção', 'Por favor, informe o valor da parcela mensal.');
+        return;
+      }
+
+      const startDate = new Date(financingData.startYear, financingData.startMonth);
+      const endDate = new Date(financingData.endYear, financingData.endMonth);
+      
+      if (endDate <= startDate) {
+        Alert.alert('Atenção', 'A data de fim deve ser posterior à data de início.');
+        return;
+      }
+
+      const monthsDiff = (financingData.endYear - financingData.startYear) * 12 + 
+                        (financingData.endMonth - financingData.startMonth) + 1;
+      
+      if (monthsDiff > 60) { // Máximo 5 anos
+        Alert.alert('Atenção', 'O período máximo do financiamento é de 5 anos.');
+        return;
+      }
+    }
+
     const finalExpense = { ...expense };
-    if (expense.type === 'fixed' && parseInt(installments) > 1) {
+    
+    if (isFinancing && expense.type === 'fixed') {
+      // Configurar financiamento
+      finalExpense.financing = {
+        startMonth: financingData.startMonth,
+        startYear: financingData.startYear,
+        endMonth: financingData.endMonth,
+        endYear: financingData.endYear,
+        originalEndMonth: financingData.endMonth,
+        originalEndYear: financingData.endYear,
+        monthlyAmount: financingData.monthlyAmount,
+        totalAmount: financingData.totalAmount,
+        isActive: true,
+        renewalCount: 0,
+        groupId: initialData?.financing?.groupId || `financing-${Date.now()}`
+      };
+      
+      // Para financiamento, o valor será o valor mensal
+      finalExpense.amount = financingData.monthlyAmount;
+    } else if (expense.type === 'fixed' && parseInt(installments) > 1) {
+      // Lógica existente para parcelas normais
       finalExpense.installments = {
         total: parseInt(installments),
         current: 1,
@@ -179,22 +240,98 @@ export default function ExpenseForm({ onSave, onCancel, initialData }: ExpenseFo
       </View>
 
       {expense.type === 'fixed' && (
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Número de Parcelas</Text>
-          <TextInput
-            style={styles.input}
-            testID="expense-installments-input"
-            value={installments}
-            onChangeText={setInstallments}
-            keyboardType="numeric"
-            placeholder="1"
-          />
-          {parseInt(installments) > 1 && (
-            <Text style={styles.installmentInfo}>
-              Valor por parcela: R$ {(expense.amount / parseInt(installments)).toFixed(2)} (será dividido automaticamente)
-            </Text>
+        <>
+          <View style={styles.inputGroup}>
+            <View style={styles.switchContainer}>
+              <Text style={styles.label}>É Financiamento?</Text>
+              <Switch
+                value={isFinancing}
+                onValueChange={(value) => {
+                  setIsFinancing(value);
+                  if (value) {
+                    // Resetar campos de parcelas quando ativar financiamento
+                    setInstallments('1');
+                  }
+                }}
+                testID="expense-financing-switch"
+              />
+            </View>
+          </View>
+
+          {isFinancing ? (
+            <>
+              <MonthYearPicker
+                value={{ month: financingData.startMonth, year: financingData.startYear }}
+                onChange={(month, year) => setFinancingData(prev => ({ ...prev, startMonth: month, startYear: year }))}
+                label="Data de Início"
+              />
+
+              <MonthYearPicker
+                value={{ month: financingData.endMonth, year: financingData.endYear }}
+                onChange={(month, year) => setFinancingData(prev => ({ ...prev, endMonth: month, endYear: year }))}
+                label="Data de Fim"
+              />
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Valor da Parcela Mensal</Text>
+                <TextInput
+                  style={styles.input}
+                  testID="expense-monthly-amount-input"
+                  value={financingData.monthlyAmount.toString()}
+                  onChangeText={(text) => {
+                    const monthlyAmount = Number(text) || 0;
+                    const startDate = new Date(financingData.startYear, financingData.startMonth);
+                    const endDate = new Date(financingData.endYear, financingData.endMonth);
+                    const monthsDiff = Math.max(1, (endDate.getFullYear() - startDate.getFullYear()) * 12 + 
+                                                    (endDate.getMonth() - startDate.getMonth()) + 1);
+                    const totalAmount = monthlyAmount * monthsDiff;
+                    
+                    setFinancingData(prev => ({ 
+                      ...prev, 
+                      monthlyAmount, 
+                      totalAmount 
+                    }));
+                  }}
+                  keyboardType="numeric"
+                  placeholder="0.00"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Valor Total Calculado</Text>
+                <Text style={styles.calculatedValue}>
+                  R$ {financingData.totalAmount.toFixed(2)}
+                </Text>
+                <Text style={styles.financingInfo}>
+                  {(() => {
+                    const startDate = new Date(financingData.startYear, financingData.startMonth);
+                    const endDate = new Date(financingData.endYear, financingData.endMonth);
+                    const monthsDiff = Math.max(1, (endDate.getFullYear() - startDate.getFullYear()) * 12 + 
+                                                    (endDate.getMonth() - startDate.getMonth()) + 1);
+                    return `${monthsDiff} parcelas de R$ ${financingData.monthlyAmount.toFixed(2)}`;
+                  })()}
+                </Text>
+              </View>
+            </>
+          ) : (
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Número de Parcelas</Text>
+              <TextInput
+                style={styles.input}
+                testID="expense-installments-input"
+                value={installments}
+                onChangeText={setInstallments}
+                keyboardType="numeric"
+                placeholder="1"
+              />
+              {parseInt(installments) > 1 && (
+                <Text style={styles.installmentInfo}>
+                  Valor por parcela: R$ {(expense.amount / parseInt(installments)).toFixed(2)} (será dividido automaticamente)
+                </Text>
+              )}
+            </View>
           )}
-        </View>
+        </>
       )}
 
       <View style={styles.buttonContainer}>
@@ -318,6 +455,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#64748b',
     marginTop: 8,
+    fontStyle: 'italic',
+  },
+  switchContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  calculatedValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#059669',
+    marginBottom: 4,
+  },
+  financingInfo: {
+    fontSize: 14,
+    color: '#64748b',
     fontStyle: 'italic',
   },
 }); 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Alert, TouchableOpacity, Modal, TextInput, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Alert, TouchableOpacity, Modal, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { StorageService } from '../utils/storage';
 import { Moon, Sun, Smartphone, Upload } from 'lucide-react-native';
@@ -215,56 +215,64 @@ export default function SettingsScreen() {
         animationType="slide"
         onRequestClose={() => setShowImportModal(false)}
       >
-        <View style={[styles.modalContainer, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}>
-          <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
-            <Text style={[styles.modalTitle, { color: colors.text.primary }]}>
-              Importar Dados
-            </Text>
-            
-            <ScrollView style={styles.modalScroll}>
-              <Text style={[styles.importLabel, { color: colors.text.secondary }]}>
-                Cole o JSON com os dados no formato:{'\n'}
-                {'{\n  "travels": [\n    {\n      "name": "Nome da Viagem",\n      "startDate": "2024-03-20",\n      "endDate": "2024-03-25",\n      "budget": {\n        "total": 1000,\n        "planned": [],\n        "discretionary": 1000\n      },\n      "expenses": [],\n      "itinerary": []\n    }\n  ]\n}'}
+        <KeyboardAvoidingView 
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <View style={[styles.modalContainer, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}>
+            <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
+              <Text style={[styles.modalTitle, { color: colors.text.primary }]}>
+                Importar Dados
               </Text>
-
-              <TextInput
-                style={[styles.textArea, { color: colors.text.primary, backgroundColor: colors.card }]}
-                value={importText}
-                onChangeText={setImportText}
-                placeholder="Cole o JSON aqui..."
-                placeholderTextColor={colors.text.secondary}
-                multiline
-                numberOfLines={10}
-              />
-            </ScrollView>
-            
-            <View style={styles.modalButtons}>
-              <TouchableOpacity 
-                style={[styles.modalButton, styles.cancelButton, { borderColor: colors.border }]}
-                onPress={() => {
-                  setShowImportModal(false);
-                  setImportText('');
-                }}
-              >
-                <Text style={{ color: colors.text.primary }}>Cancelar</Text>
-              </TouchableOpacity>
               
-              <TouchableOpacity 
-                style={[
-                  styles.modalButton, 
-                  styles.importModalButton, 
-                  { backgroundColor: colors.primary }
-                ]}
-                onPress={handleImportData}
-                disabled={isImporting}
+              <ScrollView 
+                style={styles.modalScroll}
+                keyboardShouldPersistTaps="handled"
               >
-                <Text style={styles.importModalButtonText}>
-                  {isImporting ? 'Importando...' : 'Importar'}
+                <Text style={[styles.importLabel, { color: colors.text.secondary }]}>
+                  Cole o JSON com os dados no formato:{'\n'}
+                  {'{\n  "travels": [\n    {\n      "name": "Nome da Viagem",\n      "startDate": "2024-03-20",\n      "endDate": "2024-03-25",\n      "budget": {\n        "total": 1000,\n        "planned": [],\n        "discretionary": 1000\n      },\n      "expenses": [],\n      "itinerary": []\n    }\n  ]\n}'}
                 </Text>
-              </TouchableOpacity>
+
+                <TextInput
+                  style={[styles.textArea, { color: colors.text.primary, backgroundColor: colors.card }]}
+                  value={importText}
+                  onChangeText={setImportText}
+                  placeholder="Cole o JSON aqui..."
+                  placeholderTextColor={colors.text.secondary}
+                  multiline
+                  numberOfLines={10}
+                />
+              </ScrollView>
+              
+              <View style={styles.modalButtons}>
+                <TouchableOpacity 
+                  style={[styles.modalButton, styles.cancelButton, { borderColor: colors.border }]}
+                  onPress={() => {
+                    setShowImportModal(false);
+                    setImportText('');
+                  }}
+                >
+                  <Text style={{ color: colors.text.primary }}>Cancelar</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={[
+                    styles.modalButton, 
+                    styles.importModalButton, 
+                    { backgroundColor: colors.primary }
+                  ]}
+                  onPress={handleImportData}
+                  disabled={isImporting}
+                >
+                  <Text style={styles.importModalButtonText}>
+                    {isImporting ? 'Importando...' : 'Importar'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );

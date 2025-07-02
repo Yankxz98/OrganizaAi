@@ -168,12 +168,34 @@ export default function ExpensesScreen() {
                 </View>
                 <View style={styles.expenseInfo}>
                   <Text style={styles.expenseCategory}>{categoryInfo.label}</Text>
-                  <Text style={styles.expenseDescription}>{expense.description}</Text>
-                  {expense.installments && (
+                  <Text style={styles.expenseDescription}>
+                    {expense.description}
+                    {expense.financing && (
+                      <Text style={styles.financingBadge}> 💰 Financiamento</Text>
+                    )}
+                  </Text>
+                  {expense.financing ? (
+                    <View>
+                      <Text style={styles.financingInfo}>
+                        Parcela {expense.installments?.current || 1} de {expense.installments?.total || 1} - Termina em {
+                          (() => {
+                            const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 
+                                          'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+                            return `${months[expense.financing.endMonth]}/${expense.financing.endYear}`;
+                          })()
+                        }
+                      </Text>
+                      {expense.financing.renewalCount && expense.financing.renewalCount > 0 && (
+                        <Text style={styles.renewalInfo}>
+                          Renovado {expense.financing.renewalCount}x
+                        </Text>
+                      )}
+                    </View>
+                  ) : expense.installments ? (
                     <Text style={styles.installmentInfo}>
                       Parcela {expense.installments.current} de {expense.installments.total}
                     </Text>
-                  )}
+                  ) : null}
                 </View>
                 <Text style={styles.expenseAmount}>R$ {expense.amount.toFixed(2)}</Text>
               </View>
@@ -303,6 +325,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#94a3b8',
     marginTop: 4,
+  },
+  financingBadge: {
+    fontSize: 12,
+    color: '#059669',
+    fontWeight: '600',
+  },
+  financingInfo: {
+    fontSize: 12,
+    color: '#059669',
+    marginTop: 4,
+    fontWeight: '500',
+  },
+  renewalInfo: {
+    fontSize: 11,
+    color: '#7c3aed',
+    marginTop: 2,
+    fontStyle: 'italic',
   },
   expenseAmount: {
     fontSize: 16,

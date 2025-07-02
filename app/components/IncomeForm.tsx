@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, StyleSheet, Pressable, ScrollView, Alert } from 'react-native';
+import { View, Text, TextInput, StyleSheet, Pressable, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { Briefcase, Coins, Building2, Plus, Trash2 } from 'lucide-react-native';
 import { Income, IncomeSource, StorageService } from '../utils/storage';
 import { useEvent } from '../utils/EventContext';
@@ -224,7 +224,16 @@ export default function IncomeForm({ onSave, onCancel, initialData, currentDate 
   };
 
   return (
-    <View style={styles.container} testID="income-form">
+    <KeyboardAvoidingView 
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView 
+        style={{ flex: 1 }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.container} testID="income-form">
       <View style={styles.header}>
         <Text style={styles.title}>{initialData ? 'Editar Renda' : 'Nova Renda'}</Text>
       </View>
@@ -331,7 +340,9 @@ export default function IncomeForm({ onSave, onCancel, initialData, currentDate 
           <Text style={styles.buttonText}>Salvar</Text>
         </Pressable>
       </View>
-    </View>
+      </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, Alert } from 'react-native';
+import { View, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Expense, StorageService } from '../utils/storage';
 import ExpenseForm from '../components/ExpenseForm';
 import { useEvent } from '../utils/EventContext';
+import { FinancingService } from '../utils/FinancingService';
 
 export default function AddExpenseScreen() {
   const [initialData, setInitialData] = useState<Expense | null>(null);
@@ -49,7 +50,11 @@ export default function AddExpenseScreen() {
 
       if (expenseId) {
         // Edição de despesa existente
-        if (expense.installments && expense.installments.total > 1) {
+        if (expense.financing) {
+          // Lógica para financiamento (não implementada completamente)
+          Alert.alert('Atenção', 'A edição de financiamentos ainda não está implementada.');
+          return;
+        } else if (expense.installments && expense.installments.total > 1) {
           // Lógica para despesas com parcelas
           const amountPerInstallment = expense.amount / expense.installments.total;
           expense.amount = amountPerInstallment;
@@ -101,7 +106,13 @@ export default function AddExpenseScreen() {
         newExpenses = expenses.map(e => e.id === Number(expenseId) ? expense : e);
       } else {
         // Nova despesa
-        if (expense.installments && expense.installments.total > 1) {
+        if (expense.financing) {
+          // Lógica para financiamento
+          await FinancingService.createFinancingInstallments(expense);
+          // Para financiamento, não adicionamos a despesa manualmente ao mês atual
+          // pois as parcelas já foram criadas pelo FinancingService
+          newExpenses = expenses;
+        } else if (expense.installments && expense.installments.total > 1) {
           // Lógica para despesas parceladas
           const amountPerInstallment = expense.amount / expense.installments.total;
           expense.amount = amountPerInstallment;
@@ -124,8 +135,10 @@ export default function AddExpenseScreen() {
             
             await StorageService.saveExpenses([...futureExpenses, futureExpense], futureDate);
           }
+          newExpenses = [...expenses, expense];
+        } else {
+          newExpenses = [...expenses, expense];
         }
-        newExpenses = [...expenses, expense];
       }
       
       await StorageService.saveExpenses(newExpenses, currentDate);
@@ -148,13 +161,16 @@ export default function AddExpenseScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView 
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
       <ExpenseForm 
         onSave={handleSave} 
         onCancel={handleCancel} 
         initialData={initialData} 
       />
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
