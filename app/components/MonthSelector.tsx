@@ -1,6 +1,7 @@
+import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
-import { ChevronLeft, ChevronRight } from 'lucide-react-native';
+
 import { useTheme } from '../theme/ThemeContext';
 
 interface MonthSelectorProps {
@@ -71,11 +72,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 8,
     backgroundColor: '#fff',
     borderRadius: 8,
     marginHorizontal: 16,
-    marginVertical: 8,
+    marginTop: 0,
+    marginBottom: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,

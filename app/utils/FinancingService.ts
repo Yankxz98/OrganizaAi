@@ -98,7 +98,7 @@ export class FinancingService {
     // Calcular quantos meses faltam até o fim ORIGINAL do financiamento
     const originalEndDate = new Date(expense.financing.originalEndYear, expense.financing.originalEndMonth);
     const renewalStartDate = new Date(newStartYear, newStartMonth);
-    const monthsRemaining = this.calculateMonthsDifference(renewalStartDate, originalEndDate) + 1;
+    const monthsRemaining = this.calculateMonthsDifference(renewalStartDate, originalEndDate);
     
     // Verificar se ainda há meses para renovar
     if (monthsRemaining <= 0) {
@@ -154,29 +154,33 @@ export class FinancingService {
   static calculateMonthsDifference(startDate: Date, endDate: Date): number {
     const years = endDate.getFullYear() - startDate.getFullYear();
     const months = endDate.getMonth() - startDate.getMonth();
-    return years * 12 + months;
+    return years * 12 + months + 1; // +1 para incluir ambos os meses (início e fim)
   }
   
   // Criar parcelas do financiamento
   static async createFinancingInstallments(expense: Expense): Promise<void> {
     if (!expense.financing) return;
     
-    const { startMonth, startYear, endMonth, endYear, monthlyAmount } = expense.financing;
+    const { startMonth, startYear, endMonth, endYear } = expense.financing;
     const startDate = new Date(startYear, startMonth, 1);
     const endDate = new Date(endYear, endMonth, 1);
     
     // Calcular número total de meses do financiamento
-    const totalMonths = this.calculateMonthsDifference(startDate, endDate) + 1;
+    const totalMonths = this.calculateMonthsDifference(startDate, endDate);
     
-    let currentInstallmentDate = new Date(startDate);
     let installmentNumber = 1;
     
     // Criar parcelas APENAS até a data fim do financiamento
-    while (currentInstallmentDate <= endDate && installmentNumber <= totalMonths) {
+    for (let i = 0; i < totalMonths; i++) {
+      const currentInstallmentDate = new Date(startDate);
+      currentInstallmentDate.setMonth(startDate.getMonth() + i);
+      
+      if (currentInstallmentDate > endDate) break;
+      
       const installmentExpense = {
         ...expense,
         id: Date.now() + installmentNumber,
-        amount: monthlyAmount,
+        amount: expense.amount,
         financing: expense.financing,
         installments: {
           total: totalMonths, // Número real de parcelas do financiamento
@@ -186,9 +190,6 @@ export class FinancingService {
       };
       
       await StorageService.saveExpenses([installmentExpense], currentInstallmentDate, true);
-      
-      // Próximo mês
-      currentInstallmentDate.setMonth(currentInstallmentDate.getMonth() + 1);
       installmentNumber++;
     }
   }

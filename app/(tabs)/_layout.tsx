@@ -1,7 +1,8 @@
-import React from 'react';
 import { Tabs } from 'expo-router';
-import { useTheme } from '../theme/ThemeContext';
 import { Chrome as Home, ChartPie as PieChart, Wallet, Plane, Cog } from 'lucide-react-native';
+import React from 'react';
+
+import { useTheme } from '../theme/ThemeContext';
 
 export default function TabLayout() {
   const { colors } = useTheme();
@@ -23,7 +24,8 @@ export default function TabLayout() {
           fontWeight: 'bold',
           color: colors.text.primary,
         },
-      }}>
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{

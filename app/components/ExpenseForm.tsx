@@ -5,6 +5,7 @@ import { Expense } from '../utils/storage';
 import { EXPENSE_CATEGORIES } from '../utils/constants';
 import { Coffee, ShoppingBag, Car, Heart, User, Package } from 'lucide-react-native';
 import MonthYearPicker from './MonthYearPicker';
+import { FinancingService } from '../utils/FinancingService';
 
 interface ExpenseFormProps {
   onSave: (expense: Expense) => void;
@@ -99,8 +100,7 @@ export default function ExpenseForm({ onSave, onCancel, initialData }: ExpenseFo
         return;
       }
 
-      const monthsDiff = (financingData.endYear - financingData.startYear) * 12 + 
-                        (financingData.endMonth - financingData.startMonth) + 1;
+      const monthsDiff = FinancingService.calculateMonthsDifference(startDate, endDate);
       
       if (monthsDiff > 60) { // Máximo 5 anos
         Alert.alert('Atenção', 'O período máximo do financiamento é de 5 anos.');
@@ -119,15 +119,14 @@ export default function ExpenseForm({ onSave, onCancel, initialData }: ExpenseFo
         endYear: financingData.endYear,
         originalEndMonth: financingData.endMonth,
         originalEndYear: financingData.endYear,
-        monthlyAmount: financingData.monthlyAmount,
+        monthlyAmount: expense.amount,
         totalAmount: financingData.totalAmount,
         isActive: true,
         renewalCount: 0,
         groupId: initialData?.financing?.groupId || `financing-${Date.now()}`
       };
       
-      // Para financiamento, o valor será o valor mensal
-      finalExpense.amount = financingData.monthlyAmount;
+      // Para financiamento, o valor será o valor mensal (já está correto)
     } else if (expense.type === 'fixed' && parseInt(installments) > 1) {
       // Lógica existente para parcelas normais
       finalExpense.installments = {
@@ -149,7 +148,13 @@ export default function ExpenseForm({ onSave, onCancel, initialData }: ExpenseFo
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView 
+      style={styles.container}
+      contentContainerStyle={styles.contentContainer}
+      showsVerticalScrollIndicator={true}
+      bounces={true}
+      alwaysBounceVertical={false}
+    >
       <Text style={styles.title}>{initialData ? 'Editar Despesa' : 'Nova Despesa'}</Text>
       
       <View style={styles.inputGroup}>
@@ -196,15 +201,39 @@ export default function ExpenseForm({ onSave, onCancel, initialData }: ExpenseFo
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Valor</Text>
+        <Text style={styles.label}>
+          {isFinancing && expense.type === 'fixed' ? 'Valor da Parcela Mensal' : 'Valor'}
+        </Text>
         <TextInput
           style={styles.input}
           testID="expense-amount-input"
           value={expense.amount.toString()}
-          onChangeText={(text) => setExpense({ ...expense, amount: Number(text) || 0 })}
+          onChangeText={(text) => {
+            const amount = Number(text) || 0;
+            setExpense({ ...expense, amount });
+            
+            // Se for financiamento, calcular o valor total automaticamente
+            if (isFinancing && expense.type === 'fixed') {
+              const startDate = new Date(financingData.startYear, financingData.startMonth);
+              const endDate = new Date(financingData.endYear, financingData.endMonth);
+              const monthsDiff = FinancingService.calculateMonthsDifference(startDate, endDate);
+              const totalAmount = amount * monthsDiff;
+              
+              setFinancingData(prev => ({ 
+                ...prev, 
+                monthlyAmount: amount,
+                totalAmount 
+              }));
+            }
+          }}
           keyboardType="numeric"
           placeholder="0.00"
         />
+        {isFinancing && expense.type === 'fixed' && (
+          <Text style={styles.helperText}>
+            Este valor será cobrado mensalmente durante o período do financiamento
+          </Text>
+        )}
       </View>
 
       <View style={styles.inputGroup}>
@@ -262,40 +291,31 @@ export default function ExpenseForm({ onSave, onCancel, initialData }: ExpenseFo
             <>
               <MonthYearPicker
                 value={{ month: financingData.startMonth, year: financingData.startYear }}
-                onChange={(month, year) => setFinancingData(prev => ({ ...prev, startMonth: month, startYear: year }))}
+                onChange={(month, year) => {
+                  setFinancingData(prev => ({ ...prev, startMonth: month, startYear: year }));
+                  // Recalcular valor total quando mudar as datas
+                  const startDate = new Date(year, month);
+                  const endDate = new Date(financingData.endYear, financingData.endMonth);
+                  const monthsDiff = FinancingService.calculateMonthsDifference(startDate, endDate);
+                  const totalAmount = expense.amount * monthsDiff;
+                  setFinancingData(prev => ({ ...prev, totalAmount }));
+                }}
                 label="Data de Início"
               />
 
               <MonthYearPicker
                 value={{ month: financingData.endMonth, year: financingData.endYear }}
-                onChange={(month, year) => setFinancingData(prev => ({ ...prev, endMonth: month, endYear: year }))}
+                onChange={(month, year) => {
+                  setFinancingData(prev => ({ ...prev, endMonth: month, endYear: year }));
+                  // Recalcular valor total quando mudar as datas
+                  const startDate = new Date(financingData.startYear, financingData.startMonth);
+                  const endDate = new Date(year, month);
+                  const monthsDiff = FinancingService.calculateMonthsDifference(startDate, endDate);
+                  const totalAmount = expense.amount * monthsDiff;
+                  setFinancingData(prev => ({ ...prev, totalAmount }));
+                }}
                 label="Data de Fim"
               />
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Valor da Parcela Mensal</Text>
-                <TextInput
-                  style={styles.input}
-                  testID="expense-monthly-amount-input"
-                  value={financingData.monthlyAmount.toString()}
-                  onChangeText={(text) => {
-                    const monthlyAmount = Number(text) || 0;
-                    const startDate = new Date(financingData.startYear, financingData.startMonth);
-                    const endDate = new Date(financingData.endYear, financingData.endMonth);
-                    const monthsDiff = Math.max(1, (endDate.getFullYear() - startDate.getFullYear()) * 12 + 
-                                                    (endDate.getMonth() - startDate.getMonth()) + 1);
-                    const totalAmount = monthlyAmount * monthsDiff;
-                    
-                    setFinancingData(prev => ({ 
-                      ...prev, 
-                      monthlyAmount, 
-                      totalAmount 
-                    }));
-                  }}
-                  keyboardType="numeric"
-                  placeholder="0.00"
-                />
-              </View>
 
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Valor Total Calculado</Text>
@@ -306,9 +326,8 @@ export default function ExpenseForm({ onSave, onCancel, initialData }: ExpenseFo
                   {(() => {
                     const startDate = new Date(financingData.startYear, financingData.startMonth);
                     const endDate = new Date(financingData.endYear, financingData.endMonth);
-                    const monthsDiff = Math.max(1, (endDate.getFullYear() - startDate.getFullYear()) * 12 + 
-                                                    (endDate.getMonth() - startDate.getMonth()) + 1);
-                    return `${monthsDiff} parcelas de R$ ${financingData.monthlyAmount.toFixed(2)}`;
+                    const monthsDiff = FinancingService.calculateMonthsDifference(startDate, endDate);
+                    return `${monthsDiff} parcelas de R$ ${expense.amount.toFixed(2)}`;
                   })()}
                 </Text>
               </View>
@@ -348,10 +367,12 @@ export default function ExpenseForm({ onSave, onCancel, initialData }: ExpenseFo
 
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
+    flex: 1,
     backgroundColor: '#ffffff',
-    borderRadius: 12,
-    margin: 20,
+  },
+  contentContainer: {
+    padding: 20,
+    paddingBottom: 40,
   },
   title: {
     fontSize: 20,
@@ -471,6 +492,12 @@ const styles = StyleSheet.create({
   financingInfo: {
     fontSize: 14,
     color: '#64748b',
+    fontStyle: 'italic',
+  },
+  helperText: {
+    fontSize: 14,
+    color: '#64748b',
+    marginTop: 8,
     fontStyle: 'italic',
   },
 }); 

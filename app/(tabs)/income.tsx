@@ -1,11 +1,13 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Plus, Briefcase, Building2, Coins, Pencil, Trash2 } from 'lucide-react-native';
-import { StorageService, Income } from '../utils/storage';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Platform } from 'react-native';
+
+import AppContainer from '../components/AppContainer';
 import IncomeForm from '../components/IncomeForm';
 import MonthSelector from '../components/MonthSelector';
 import { useEvent } from '../utils/EventContext';
-import { useRouter } from 'expo-router';
+import { StorageService, Income } from '../utils/storage';
 
 interface IncomeScreenProps {
   initialDate?: string;
@@ -145,25 +147,18 @@ export default function IncomeScreen({ initialDate }: IncomeScreenProps) {
 
   return (
     <>
-      <ScrollView style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Renda</Text>
-          <Pressable 
-            style={styles.addButton} 
-            testID="add-income-button"
-            onPress={() => {
-              setEditingIncome(null);
-              setShowForm(true);
-            }}
-          >
-            <Plus size={24} color="#ffffff" />
-          </Pressable>
+      <AppContainer 
+        safeAreaEdges={['right', 'left']}
+        contentContainerStyle={{
+          paddingBottom: Platform.OS === 'ios' ? 80 : 70,
+        }}
+      >
+        <View style={styles.monthSelectorContainer}>
+          <MonthSelector 
+            currentDate={currentDate} 
+            onMonthChange={handleMonthChange} 
+          />
         </View>
-
-        <MonthSelector 
-          currentDate={currentDate} 
-          onMonthChange={handleMonthChange} 
-        />
 
         <View style={styles.totalContainer}>
           <View style={styles.totalBox}>
@@ -235,21 +230,31 @@ export default function IncomeScreen({ initialDate }: IncomeScreenProps) {
             );
           })}
         </View>
-      </ScrollView>
+      </AppContainer>
+
+      {/* Botão flutuante */}
+      <Pressable 
+        style={styles.floatingButton}
+        onPress={() => {
+          setEditingIncome(null);
+          setShowForm(true);
+        }}
+        testID="add-income-button"
+      >
+        <Plus size={24} color="#ffffff" />
+      </Pressable>
 
       {showForm && (
         <View style={styles.formContainer}>
-          <ScrollView>
-            <IncomeForm
-              onSave={handleSaveIncome}
-              onCancel={() => {
-                setShowForm(false);
-                setEditingIncome(null);
-              }}
-              initialData={editingIncome}
-              currentDate={currentDate}
-            />
-          </ScrollView>
+          <IncomeForm
+            onSave={handleSaveIncome}
+            onCancel={() => {
+              setShowForm(false);
+              setEditingIncome(null);
+            }}
+            initialData={editingIncome}
+            currentDate={currentDate}
+          />
         </View>
       )}
     </>
@@ -261,27 +266,24 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8fafc',
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+  monthSelectorContainer: {
+    paddingTop: 8,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1e293b',
-  },
-  addButton: {
+  floatingButton: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
     backgroundColor: '#3b82f6',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   totalContainer: {
     flexDirection: 'row',
@@ -412,5 +414,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fafc',
     zIndex: 1000,
     elevation: 5,
+    flex: 1,
   },
 });

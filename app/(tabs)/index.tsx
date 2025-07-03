@@ -1,12 +1,14 @@
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { ArrowUpRight, ArrowDownRight, Wallet } from 'lucide-react-native';
-import { useEffect, useState, useCallback, useRef } from 'react';
-import { StorageService, MonthlyData, Income, Expense } from '../utils/storage';
-import MonthSelector from '../components/MonthSelector';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
 import ExpensesDropdown from '../components/ExpensesDropdown';
 import IncomeDropdown from '../components/IncomeDropdown';
+import MonthSelector from '../components/MonthSelector';
 import { useEvent } from '../utils/EventContext';
 import { FinancingService } from '../utils/FinancingService';
+import { StorageService, MonthlyData, Income, Expense } from '../utils/storage';
 
 export default function HomeScreen() {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -169,74 +171,80 @@ export default function HomeScreen() {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Dashboard</Text>
-      </View>
-
-      <View style={styles.monthSelectorContainer}>
-        <MonthSelector currentDate={currentDate} onMonthChange={handleMonthChange} />
-      </View>
-
-      <View style={styles.summaryContainer}>
-        <View style={styles.balanceCard}>
-          <Text style={styles.balanceLabel}>Saldo Disponível</Text>
-          <Text style={styles.balance}>R$ {(monthlyData.totalIncome - monthlyData.totalExpenses).toFixed(2)}</Text>
+    <SafeAreaView style={{ flex: 1 }} edges={['right', 'left']}>
+      <ScrollView 
+        style={{ flex: 1 }}
+        contentContainerStyle={{
+          flexGrow: 1,
+          paddingBottom: Platform.OS === 'ios' ? 34 : 24,
+        }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.monthSelectorContainer}>
+          <MonthSelector currentDate={currentDate} onMonthChange={handleMonthChange} />
         </View>
 
-        <IncomeDropdown
-          totalIncome={monthlyData.totalIncome}
-          baseIncome={baseIncome}
-          extrasIncome={extrasIncome}
-        />
-
-        <ExpensesDropdown
-          totalExpenses={monthlyData.totalExpenses}
-          fixedExpenses={fixedExpenses}
-          variableExpenses={variableExpenses}
-        />
-
-        <View style={styles.summaryCard}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Poupança</Text>
-            <Wallet color="#3b82f6" size={20} />
+        <View style={styles.summaryContainer}>
+          <View style={styles.balanceCard}>
+            <Text style={styles.balanceLabel}>Saldo Disponível</Text>
+            <Text style={styles.balance}>R$ {(monthlyData.totalIncome - monthlyData.totalExpenses).toFixed(2)}</Text>
           </View>
-          <Text style={styles.cardValue}>R$ {monthlyData.savings.toFixed(2)}</Text>
-          <View style={styles.progressBar}>
-            <View 
-              style={[
-                styles.progressFill, 
-                { 
-                  width: `${calculatePercentage(monthlyData.savings, monthlyData.totalIncome)}%` as any,
-                  backgroundColor: '#3b82f6'
-                }
-              ]} 
-            />
+
+          <IncomeDropdown
+            totalIncome={monthlyData.totalIncome}
+            baseIncome={baseIncome}
+            extrasIncome={extrasIncome}
+          />
+
+          <ExpensesDropdown
+            totalExpenses={monthlyData.totalExpenses}
+            fixedExpenses={fixedExpenses}
+            variableExpenses={variableExpenses}
+          />
+
+          <View style={styles.summaryCard}>
+            <View style={styles.cardHeader}>
+              <Text style={styles.cardTitle}>Poupança</Text>
+              <Wallet color="#3b82f6" size={20} />
+            </View>
+            <Text style={styles.cardValue}>R$ {monthlyData.savings.toFixed(2)}</Text>
+            <View style={styles.progressBar}>
+              <View 
+                style={[
+                  styles.progressFill, 
+                  { 
+                    width: `${calculatePercentage(monthlyData.savings, monthlyData.totalIncome)}%` as any,
+                    backgroundColor: '#3b82f6'
+                  }
+                ]} 
+              />
+            </View>
           </View>
         </View>
-      </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Meta Mensal de Economia</Text>
-        <View style={styles.goalCard}>
-          <View style={styles.goalInfo}>
-            <Text style={styles.goalTitle}>Meta de Economia</Text>
-            <Text style={styles.goalTarget}>R$ 3.000</Text>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Meta Mensal de Economia</Text>
+          <View style={styles.goalCard}>
+            <View style={styles.goalInfo}>
+              <Text style={styles.goalTitle}>Meta de Economia</Text>
+              <Text style={styles.goalTarget}>R$ 3.000</Text>
+            </View>
+            <View style={styles.progressBar}>
+              <View 
+                style={[
+                  styles.progressFill, 
+                  { width: `${(monthlyData.savings / 3000) * 100}%` as any }
+                ]} 
+              />
+            </View>
+            <Text style={styles.goalProgress}>
+              {((monthlyData.savings / 3000) * 100).toFixed(0)}% alcançado
+            </Text>
           </View>
-          <View style={styles.progressBar}>
-            <View 
-              style={[
-                styles.progressFill, 
-                { width: `${(monthlyData.savings / 3000) * 100}%` as any }
-              ]} 
-            />
-          </View>
-          <Text style={styles.goalProgress}>
-            {((monthlyData.savings / 3000) * 100).toFixed(0)}% alcançado
-          </Text>
         </View>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -245,21 +253,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e5e5',
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#0f172a',
-  },
+
   monthSelectorContainer: {
-    marginVertical: 8,
+    paddingTop: 8,
   },
   balanceCard: {
     backgroundColor: '#ffffff',

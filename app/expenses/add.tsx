@@ -107,7 +107,8 @@ export default function AddExpenseScreen() {
       } else {
         // Nova despesa
         if (expense.financing) {
-          // Lógica para financiamento
+          // Para financiamento, o valor já é o valor mensal
+          // Não precisamos dividir por parcelas pois cada parcela terá o mesmo valor
           await FinancingService.createFinancingInstallments(expense);
           // Para financiamento, não adicionamos a despesa manualmente ao mês atual
           // pois as parcelas já foram criadas pelo FinancingService
@@ -164,6 +165,7 @@ export default function AddExpenseScreen() {
     <KeyboardAvoidingView 
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
       <ExpenseForm 
         onSave={handleSave} 

@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import { ExpenseCategoryId } from './constants';
 
 const STORAGE_KEYS = {
@@ -43,6 +44,20 @@ export interface Expense {
     total: number;
     current: number;
     groupId: string;
+  };
+  financing?: {
+    startMonth: number;
+    startYear: number;
+    endMonth: number;
+    endYear: number;
+    originalEndMonth: number;
+    originalEndYear: number;
+    monthlyAmount: number;
+    totalAmount: number;
+    isActive: boolean;
+    reminderSent?: boolean;
+    renewalCount?: number;
+    groupId?: string;
   };
 }
 

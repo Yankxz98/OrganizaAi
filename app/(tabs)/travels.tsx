@@ -5,6 +5,7 @@ import { Plus, Trash2, ChevronDown, ChevronUp, ArrowRight } from 'lucide-react-n
 import { Travel, StorageService } from '../utils/storage';
 import { useTheme } from '../theme/ThemeContext';
 import { useEvent } from '../utils/EventContext';
+import AppContainer from '../components/AppContainer';
 
 export default function TravelsScreen() {
   const router = useRouter();
@@ -136,7 +137,7 @@ export default function TravelsScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <AppContainer withScroll={false}>
       <View style={[styles.header, { backgroundColor: colors.card }]}>
         <Text style={[styles.title, { color: colors.text.primary }]}>Minhas Viagens</Text>
         <TouchableOpacity 
@@ -148,6 +149,8 @@ export default function TravelsScreen() {
       </View>
 
       <FlatList
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: 24 }}
         data={travels}
         keyExtractor={(item) => item.id.toString()}
         renderItem={({ item }) => {
@@ -253,7 +256,7 @@ export default function TravelsScreen() {
           </View>
         )}
       />
-    </View>
+    </AppContainer>
   );
 }
 

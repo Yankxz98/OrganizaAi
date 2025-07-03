@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, StyleSheet, Pressable, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+
 import { Briefcase, Coins, Building2, Plus, Trash2 } from 'lucide-react-native';
-import { Income, IncomeSource, StorageService } from '../utils/storage';
+
 import { useEvent } from '../utils/EventContext';
+import { Income, IncomeSource, StorageService } from '../utils/storage';
 
 interface IncomeFormProps {
   onSave: (income: Income) => void;
@@ -230,6 +232,10 @@ export default function IncomeForm({ onSave, onCancel, initialData, currentDate 
     >
       <ScrollView 
         style={{ flex: 1 }}
+        contentContainerStyle={{
+          flexGrow: 1,
+          paddingBottom: Platform.OS === 'ios' ? 34 : 24,
+        }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -348,10 +354,9 @@ export default function IncomeForm({ onSave, onCancel, initialData, currentDate 
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
     padding: 20,
     backgroundColor: '#ffffff',
-    borderRadius: 12,
-    margin: 20,
   },
   header: {
     marginBottom: 20,

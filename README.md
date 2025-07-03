@@ -1,6 +1,21 @@
-# Roteirize
+# OrganizaAi
 
-Aplicativo mobile para gerenciamento de roteiros.
+Aplicativo de gestão financeira pessoal desenvolvido com React Native e Expo.
+
+## 🚀 Melhorias Recentes
+
+### ✅ Solução Universal para Problemas de Rolagem
+
+Implementamos uma **solução centralizada** que resolve todos os problemas de rolagem no app:
+
+- **Componente `AppContainer`**: Container reutilizável que padroniza layout em todas as telas
+- **Configuração automática**: SafeAreaView, KeyboardAvoidingView e ScrollView configurados automaticamente
+- **Compatibilidade universal**: Funciona corretamente em iOS e Android
+- **Padding inteligente**: Espaço adequado para evitar corte de conteúdo
+
+**Resultado**: Nunca mais conteúdo cortado ou inacessível no final das telas! 🎉
+
+📖 **Documentação completa**: [SOLUCAO_ROLAGEM.md](./SOLUCAO_ROLAGEM.md)
 
 ## Estrutura do Projeto
 

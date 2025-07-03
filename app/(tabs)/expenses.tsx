@@ -1,11 +1,13 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from 'react-native';
-import { Plus, Coffee, ShoppingBag, Car, Heart, User, Package, Pencil, Trash2 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
-import { StorageService, Expense } from '../utils/storage';
-import { EXPENSE_CATEGORIES } from '../utils/constants';
+import { Plus, Coffee, ShoppingBag, Car, Heart, User, Package, Pencil, Trash2 } from 'lucide-react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
 import MonthSelector from '../components/MonthSelector';
+import { EXPENSE_CATEGORIES } from '../utils/constants';
 import { useEvent } from '../utils/EventContext';
+import { StorageService, Expense } from '../utils/storage';
 
 const IconComponent = ({ name, color }: { name: string; color: string }) => {
   switch (name) {
@@ -122,22 +124,22 @@ export default function ExpensesScreen() {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Despesas</Text>
-        <Pressable 
-          style={styles.addButton}
-          onPress={handleAddExpense}
-          testID="add-expense-button"
-        >
-          <Plus size={24} color="#ffffff" />
-        </Pressable>
+    <SafeAreaView style={{ flex: 1 }} edges={['right', 'left']}>
+      <ScrollView 
+        style={{ flex: 1 }}
+        contentContainerStyle={{
+          flexGrow: 1,
+          paddingBottom: Platform.OS === 'ios' ? 80 : 70,
+        }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+      <View style={styles.monthSelectorContainer}>
+        <MonthSelector
+          currentDate={currentDate}
+          onMonthChange={handleMonthChange}
+        />
       </View>
-
-      <MonthSelector
-        currentDate={currentDate}
-        onMonthChange={handleMonthChange}
-      />
 
       <View style={styles.totalContainer}>
         <View style={styles.totalBox}>
@@ -219,7 +221,17 @@ export default function ExpensesScreen() {
           );
         })}
       </View>
-    </ScrollView>
+      </ScrollView>
+      
+      {/* Botão flutuante */}
+      <Pressable 
+        style={styles.floatingButton}
+        onPress={handleAddExpense}
+        testID="add-expense-button"
+      >
+        <Plus size={24} color="#ffffff" />
+      </Pressable>
+    </SafeAreaView>
   );
 }
 
@@ -228,32 +240,24 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8fafc',
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+  monthSelectorContainer: {
+    paddingTop: 8,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1e293b',
-  },
-  addButton: {
+  floatingButton: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
     backgroundColor: '#0ea5e9',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   totalContainer: {
     flexDirection: 'row',
