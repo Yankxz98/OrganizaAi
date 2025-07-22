@@ -45,8 +45,8 @@ export default function HomeScreen() {
       
       // Carregar rendas do mês
       const incomeData = await StorageService.loadIncome();
-      // Carregar despesas do mês
-      const expensesData = await StorageService.loadExpenses(dateToUse);
+      // Carregar apenas despesas ativas (exclui gastos planejados não ativados)
+      const expensesData = await StorageService.loadActiveExpenses(dateToUse);
       
       // Calcular totais do mês
       let totalBaseIncome = 0;

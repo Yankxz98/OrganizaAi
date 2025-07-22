@@ -40,6 +40,8 @@ export interface Expense {
   description: string;
   amount: number;
   type: 'fixed' | 'variable';
+  isPlanned?: boolean; // Indica se é um gasto planejado
+  isActivated?: boolean; // Indica se o gasto planejado foi ativado (só se aplica quando isPlanned = true)
   installments?: {
     total: number;
     current: number;
@@ -123,6 +125,11 @@ export interface ImportData {
   travels?: Travel[];
 }
 
+export interface ImportFinancialData {
+  expenses?: Expense[];
+  income?: Income[];
+}
+
 export const StorageService = {
   // Monthly Data
   async saveMonthlyData(data: MonthlyData, date: Date) {
@@ -195,6 +202,69 @@ export const StorageService = {
     } catch (error) {
       console.error('Error loading expenses:', error);
       return [];
+    }
+  },
+
+  // Métodos específicos para gastos planejados
+  async loadPlannedExpenses(date: Date): Promise<Expense[]> {
+    try {
+      const allExpenses = await this.loadExpenses(date);
+      return allExpenses.filter(expense => expense.isPlanned === true);
+    } catch (error) {
+      console.error('Error loading planned expenses:', error);
+      return [];
+    }
+  },
+
+  async loadActiveExpenses(date: Date): Promise<Expense[]> {
+    try {
+      const allExpenses = await this.loadExpenses(date);
+      return allExpenses.filter(expense => !expense.isPlanned || expense.isActivated === true);
+    } catch (error) {
+      console.error('Error loading active expenses:', error);
+      return [];
+    }
+  },
+
+  async activatePlannedExpense(expenseId: number, date: Date): Promise<boolean> {
+    try {
+      const expenses = await this.loadExpenses(date);
+      const expenseIndex = expenses.findIndex(exp => exp.id === expenseId);
+      
+      if (expenseIndex === -1) {
+        console.error('Expense not found');
+        return false;
+      }
+
+      // Ativar o gasto planejado
+      expenses[expenseIndex].isActivated = true;
+      
+      await this.saveExpenses(expenses, date);
+      return true;
+    } catch (error) {
+      console.error('Error activating planned expense:', error);
+      return false;
+    }
+  },
+
+  async deactivatePlannedExpense(expenseId: number, date: Date): Promise<boolean> {
+    try {
+      const expenses = await this.loadExpenses(date);
+      const expenseIndex = expenses.findIndex(exp => exp.id === expenseId);
+      
+      if (expenseIndex === -1) {
+        console.error('Expense not found');
+        return false;
+      }
+
+      // Desativar o gasto planejado
+      expenses[expenseIndex].isActivated = false;
+      
+      await this.saveExpenses(expenses, date);
+      return true;
+    } catch (error) {
+      console.error('Error deactivating planned expense:', error);
+      return false;
     }
   },
 
@@ -310,10 +380,64 @@ export const StorageService = {
 
       return { 
         success: true, 
-        message: 'Dados importados com sucesso!' 
+        message: 'Dados de viagem importados com sucesso!' 
       };
     } catch (error) {
       console.error('Erro ao importar dados:', error);
+      return { 
+        success: false, 
+        message: 'Erro ao processar o JSON. Verifique o formato dos dados.' 
+      };
+    }
+  },
+
+  async importFinancialData(jsonData: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const data: ImportFinancialData = JSON.parse(jsonData);
+      
+      if (!data || typeof data !== 'object') {
+        return { success: false, message: 'Formato de dados inválido' };
+      }
+
+      let importedItems = 0;
+
+      // Importar gastos
+      if (data.expenses && Array.isArray(data.expenses)) {
+        const currentDate = new Date();
+        const expensesWithNewIds = data.expenses.map(expense => ({
+          ...expense,
+          id: Date.now() + Math.random() // Garantir IDs únicos
+        }));
+        
+        await this.saveExpenses(expensesWithNewIds, currentDate, true);
+        importedItems += expensesWithNewIds.length;
+      }
+
+      // Importar rendas
+      if (data.income && Array.isArray(data.income)) {
+        const currentIncome = await this.loadIncome();
+        const incomeWithNewIds = data.income.map(income => ({
+          ...income,
+          id: Date.now() + Math.random() // Garantir IDs únicos
+        }));
+        
+        await this.saveIncome([...currentIncome, ...incomeWithNewIds]);
+        importedItems += incomeWithNewIds.length;
+      }
+
+      if (importedItems === 0) {
+        return { 
+          success: false, 
+          message: 'Nenhum dado financeiro válido encontrado para importar.' 
+        };
+      }
+
+      return { 
+        success: true, 
+        message: `${importedItems} dados financeiros importados com sucesso!` 
+      };
+    } catch (error) {
+      console.error('Erro ao importar dados financeiros:', error);
       return { 
         success: false, 
         message: 'Erro ao processar o JSON. Verifique o formato dos dados.' 

@@ -12,7 +12,7 @@ export default function AddExpenseScreen() {
   const router = useRouter();
   const { triggerEvent } = useEvent();
   const params = useLocalSearchParams();
-  const { expenseId, month, year } = params;
+  const { expenseId, month, year, isPlanned } = params;
   
   // Converter o mês e ano para Date caso estejam presentes
   const currentDate = month && year 
@@ -32,11 +32,23 @@ export default function AddExpenseScreen() {
         } catch (error) {
           console.error('Erro ao carregar despesa:', error);
         }
+      } else if (isPlanned === 'true' && !dataLoaded) {
+        // Definir dados iniciais para gasto planejado
+        setInitialData({
+          id: Date.now(),
+          category: 'others',
+          description: '',
+          amount: 0,
+          type: 'variable',
+          isPlanned: true,
+          isActivated: false
+        });
+        setDataLoaded(true);
       }
     };
 
     loadExpenseData();
-  }, [expenseId, dataLoaded, currentDate]);
+  }, [expenseId, isPlanned, dataLoaded, currentDate]);
 
   const handleSave = async (expense: Expense) => {
     if (!expense.description || !expense.amount) {

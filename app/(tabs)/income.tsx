@@ -6,6 +6,7 @@ import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Platform } from '
 import AppContainer from '../components/AppContainer';
 import IncomeForm from '../components/IncomeForm';
 import MonthSelector from '../components/MonthSelector';
+import { useTheme } from '../theme/ThemeContext';
 import { useEvent } from '../utils/EventContext';
 import { StorageService, Income } from '../utils/storage';
 
@@ -15,6 +16,7 @@ interface IncomeScreenProps {
 
 export default function IncomeScreen({ initialDate }: IncomeScreenProps) {
   const router = useRouter();
+  const { colors } = useTheme();
   const [incomes, setIncomes] = useState<Income[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingIncome, setEditingIncome] = useState<Income | null>(null);
@@ -234,7 +236,7 @@ export default function IncomeScreen({ initialDate }: IncomeScreenProps) {
 
       {/* Botão flutuante */}
       <Pressable 
-        style={styles.floatingButton}
+        style={[styles.floatingButton, { backgroundColor: colors.primary }]}
         onPress={() => {
           setEditingIncome(null);
           setShowForm(true);
@@ -273,7 +275,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 20,
     right: 20,
-    backgroundColor: '#3b82f6',
     width: 56,
     height: 56,
     borderRadius: 28,

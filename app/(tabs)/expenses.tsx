@@ -1,13 +1,14 @@
 import { useRouter } from 'expo-router';
-import { Plus, Coffee, ShoppingBag, Car, Heart, User, Package, Pencil, Trash2 } from 'lucide-react-native';
+import { Plus, Coffee, ShoppingBag, Car, Heart, User, Package, Pencil, Trash2, ChevronDown, ChevronUp, CheckSquare, Square } from 'lucide-react-native';
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Platform, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import MonthSelector from '../components/MonthSelector';
 import { EXPENSE_CATEGORIES } from '../utils/constants';
 import { useEvent } from '../utils/EventContext';
 import { StorageService, Expense } from '../utils/storage';
+import { useTheme } from '../theme/ThemeContext';
 
 const IconComponent = ({ name, color }: { name: string; color: string }) => {
   switch (name) {
@@ -30,14 +31,22 @@ const IconComponent = ({ name, color }: { name: string; color: string }) => {
 
 export default function ExpensesScreen() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [plannedExpenses, setPlannedExpenses] = useState<Expense[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [showPlannedExpenses, setShowPlannedExpenses] = useState(false);
   const { triggerEvent, subscribeToEvent } = useEvent();
+  const { colors } = useTheme();
   const router = useRouter();
 
   const loadExpenses = useCallback(async () => {
     try {
-      const data = await StorageService.loadExpenses(currentDate);
-      setExpenses(data);
+      // Carregar gastos ativos (reais + planejados ativados)
+      const activeData = await StorageService.loadActiveExpenses(currentDate);
+      setExpenses(activeData);
+
+      // Carregar gastos planejados (incluindo não ativados)
+      const plannedData = await StorageService.loadPlannedExpenses(currentDate);
+      setPlannedExpenses(plannedData);
     } catch (error) {
       console.error('Erro ao carregar despesas:', error);
     }
@@ -61,6 +70,35 @@ export default function ExpensesScreen() {
         year: currentDate.getFullYear()
       }
     });
+  };
+
+  const handleAddPlannedExpense = () => {
+    router.push({
+      pathname: '/expenses/add',
+      params: {
+        month: currentDate.getMonth(),
+        year: currentDate.getFullYear(),
+        isPlanned: 'true'
+      }
+    });
+  };
+
+  const handleTogglePlannedExpense = async (expense: Expense) => {
+    try {
+      const success = expense.isActivated 
+        ? await StorageService.deactivatePlannedExpense(expense.id, currentDate)
+        : await StorageService.activatePlannedExpense(expense.id, currentDate);
+
+      if (success) {
+        await loadExpenses();
+        triggerEvent('EXPENSE_UPDATED');
+      } else {
+        Alert.alert('Erro', 'Não foi possível atualizar o gasto planejado');
+      }
+    } catch (error) {
+      console.error('Erro ao alternar gasto planejado:', error);
+      Alert.alert('Erro', 'Ocorreu um erro ao atualizar o gasto');
+    }
   };
 
   const handleEditExpense = (expense: Expense) => {
@@ -104,18 +142,21 @@ export default function ExpensesScreen() {
   };
 
   const calculateTotal = () => {
-    return expenses.reduce((total, expense) => total + expense.amount, 0);
+    // Considerar apenas gastos ativos (não planejados ou planejados ativados)
+    return expenses
+      .filter(expense => !expense.isPlanned || expense.isActivated)
+      .reduce((total, expense) => total + expense.amount, 0);
   };
 
   const calculateFixedTotal = () => {
     return expenses
-      .filter(expense => expense.type === 'fixed')
+      .filter(expense => expense.type === 'fixed' && (!expense.isPlanned || expense.isActivated))
       .reduce((total, expense) => total + expense.amount, 0);
   };
 
   const calculateVariableTotal = () => {
     return expenses
-      .filter(expense => expense.type === 'variable')
+      .filter(expense => expense.type === 'variable' && (!expense.isPlanned || expense.isActivated))
       .reduce((total, expense) => total + expense.amount, 0);
   };
 
@@ -221,11 +262,125 @@ export default function ExpensesScreen() {
           );
         })}
       </View>
+
+      {/* Seção de Gastos Planejados */}
+      <View style={styles.plannedSection}>
+        <Pressable 
+          style={styles.plannedHeader}
+          onPress={() => setShowPlannedExpenses(!showPlannedExpenses)}
+        >
+          <Text style={styles.plannedTitle}>
+            Gastos Planejados ({plannedExpenses.length})
+          </Text>
+          <View style={styles.plannedHeaderRight}>
+            <Pressable 
+              style={styles.addPlannedButton}
+              onPress={handleAddPlannedExpense}
+            >
+              <Plus size={20} color="#3b82f6" />
+            </Pressable>
+            {showPlannedExpenses ? (
+              <ChevronUp size={24} color="#64748b" />
+            ) : (
+              <ChevronDown size={24} color="#64748b" />
+            )}
+          </View>
+        </Pressable>
+
+        {showPlannedExpenses && (
+          <View style={styles.plannedList}>
+            {plannedExpenses.length === 0 ? (
+              <View style={styles.emptyPlannedContainer}>
+                <Text style={styles.emptyPlannedText}>
+                  Nenhum gasto planejado para este mês
+                </Text>
+                <Text style={styles.emptyPlannedSubtext}>
+                  Toque no + acima para adicionar gastos que você está planejando
+                </Text>
+              </View>
+            ) : (
+              plannedExpenses.map((expense) => {
+                const categoryInfo = getCategoryInfo(expense.category);
+                return (
+                  <View key={expense.id} style={[
+                    styles.plannedExpenseCard,
+                    expense.isActivated && styles.plannedExpenseCardActivated
+                  ]}>
+                    <View style={styles.plannedExpenseHeader}>
+                      <Pressable 
+                        style={styles.checkboxContainer}
+                        onPress={() => handleTogglePlannedExpense(expense)}
+                      >
+                        {expense.isActivated ? (
+                          <CheckSquare size={24} color="#22c55e" />
+                        ) : (
+                          <Square size={24} color="#94a3b8" />
+                        )}
+                      </Pressable>
+                      
+                      <View style={[styles.categoryIcon, { backgroundColor: categoryInfo.color }]}>
+                        <IconComponent name={categoryInfo.icon} color="#ffffff" />
+                      </View>
+                      
+                      <View style={styles.plannedExpenseInfo}>
+                        <Text style={[
+                          styles.expenseCategory,
+                          expense.isActivated && styles.activatedText
+                        ]}>
+                          {categoryInfo.label}
+                        </Text>
+                        <Text style={[
+                          styles.expenseDescription,
+                          expense.isActivated && styles.activatedText
+                        ]}>
+                          {expense.description}
+                        </Text>
+                        <Text style={[
+                          styles.expenseType,
+                          expense.isActivated && styles.activatedText
+                        ]}>
+                          {expense.type === 'fixed' ? 'Fixa' : 'Variável'} • Planejado
+                        </Text>
+                      </View>
+                      
+                      <View style={styles.plannedExpenseAmount}>
+                        <Text style={[
+                          styles.amount,
+                          expense.isActivated && styles.activatedAmount
+                        ]}>
+                          R$ {expense.amount.toFixed(2)}
+                        </Text>
+                      </View>
+                    </View>
+                    
+                    <View style={styles.actionsContainer}>
+                      <Pressable 
+                        style={styles.actionButton} 
+                        onPress={() => handleEditExpense(expense)}
+                        testID="edit-planned-expense-button"
+                      >
+                        <Pencil size={20} color="#64748b" />
+                      </Pressable>
+                      <Pressable 
+                        style={styles.actionButton} 
+                        onPress={() => handleDeleteExpense(expense)}
+                        testID="delete-planned-expense-button"
+                      >
+                        <Trash2 size={20} color="#64748b" />
+                      </Pressable>
+                    </View>
+                  </View>
+                );
+              })
+            )}
+          </View>
+        )}
+      </View>
       </ScrollView>
       
       {/* Botão flutuante */}
       <Pressable 
-        style={styles.floatingButton}
+        style={[styles.floatingButton, { backgroundColor: colors.primary }]}
         onPress={handleAddExpense}
         testID="add-expense-button"
       >
@@ -247,7 +402,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 20,
     right: 20,
-    backgroundColor: '#0ea5e9',
     width: 56,
     height: 56,
     borderRadius: 28,
@@ -368,5 +522,101 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginLeft: 8,
     backgroundColor: '#f1f5f9',
+  },
+  // Estilos para gastos planejados
+  plannedSection: {
+    margin: 16,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  plannedHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+  plannedTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1e293b',
+  },
+  plannedHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  addPlannedButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#eff6ff',
+  },
+  plannedList: {
+    padding: 16,
+  },
+  emptyPlannedContainer: {
+    alignItems: 'center',
+    padding: 24,
+  },
+  emptyPlannedText: {
+    fontSize: 16,
+    color: '#64748b',
+    marginBottom: 8,
+  },
+  emptyPlannedSubtext: {
+    fontSize: 14,
+    color: '#94a3b8',
+    textAlign: 'center',
+  },
+  plannedExpenseCard: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  plannedExpenseCardActivated: {
+    backgroundColor: '#f0fdf4',
+    borderColor: '#22c55e',
+  },
+  plannedExpenseHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  checkboxContainer: {
+    marginRight: 12,
+  },
+  plannedExpenseInfo: {
+    flex: 1,
+    marginLeft: 8,
+  },
+  plannedExpenseAmount: {
+    alignItems: 'flex-end',
+  },
+  activatedText: {
+    color: '#166534',
+  },
+  activatedAmount: {
+    color: '#22c55e',
+  },
+  expenseType: {
+    fontSize: 12,
+    color: '#94a3b8',
+    marginTop: 2,
+  },
+  amount: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1e293b',
   },
 });

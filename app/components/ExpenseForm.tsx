@@ -42,7 +42,9 @@ export default function ExpenseForm({ onSave, onCancel, initialData }: ExpenseFo
       category: 'others',
       description: '',
       amount: 0,
-      type: 'variable'
+      type: 'variable',
+      isPlanned: false,
+      isActivated: false
     };
   });
 
@@ -232,6 +234,28 @@ export default function ExpenseForm({ onSave, onCancel, initialData }: ExpenseFo
         {isFinancing && expense.type === 'fixed' && (
           <Text style={styles.helperText}>
             Este valor será cobrado mensalmente durante o período do financiamento
+          </Text>
+        )}
+      </View>
+
+      <View style={styles.inputGroup}>
+        <View style={styles.switchContainer}>
+          <Text style={styles.label}>É um gasto planejado?</Text>
+          <Switch
+            value={expense.isPlanned || false}
+            onValueChange={(value) => {
+              setExpense({ 
+                ...expense, 
+                isPlanned: value,
+                isActivated: value ? false : undefined // Se não for planejado, remover isActivated
+              });
+            }}
+            testID="expense-planned-switch"
+          />
+        </View>
+        {expense.isPlanned && (
+          <Text style={styles.helperText}>
+            Gastos planejados não entram nos totais até serem ativados
           </Text>
         )}
       </View>

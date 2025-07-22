@@ -2,14 +2,15 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, Alert, TouchableOpacity, Modal, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { StorageService } from '../utils/storage';
-import { Moon, Sun, Smartphone, Upload } from 'lucide-react-native';
+import { Moon, Sun, Smartphone, Upload, Wallet } from 'lucide-react-native';
 import { useEvent } from '../utils/EventContext';
 
 export default function SettingsScreen() {
   const { colors, theme, setTheme } = useTheme();
   const { triggerEvent } = useEvent();
   const [isResetting, setIsResetting] = useState(false);
-  const [showImportModal, setShowImportModal] = useState(false);
+  const [showImportTravelModal, setShowImportTravelModal] = useState(false);
+  const [showImportFinancialModal, setShowImportFinancialModal] = useState(false);
   const [importText, setImportText] = useState('');
   const [isImporting, setIsImporting] = useState(false);
 
@@ -46,7 +47,7 @@ export default function SettingsScreen() {
     );
   };
 
-  const handleImportData = async () => {
+  const handleImportTravelData = async () => {
     if (!importText.trim()) {
       Alert.alert('Erro', 'Por favor, insira os dados a serem importados.');
       return;
@@ -57,10 +58,8 @@ export default function SettingsScreen() {
       const result = await StorageService.importData(importText);
       if (result.success) {
         // Disparar eventos para atualizar todas as telas
-        triggerEvent('EXPENSE_UPDATED');
-        triggerEvent('INCOME_UPDATED');
         triggerEvent('TRAVEL_UPDATED');
-        setShowImportModal(false);
+        setShowImportTravelModal(false);
         setImportText('');
       }
       Alert.alert(
@@ -68,7 +67,35 @@ export default function SettingsScreen() {
         result.message
       );
     } catch (error) {
-      Alert.alert('Erro', 'Ocorreu um erro ao importar os dados.');
+      Alert.alert('Erro', 'Ocorreu um erro ao importar os dados de viagem.');
+      console.error(error);
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const handleImportFinancialData = async () => {
+    if (!importText.trim()) {
+      Alert.alert('Erro', 'Por favor, insira os dados a serem importados.');
+      return;
+    }
+
+    setIsImporting(true);
+    try {
+      const result = await StorageService.importFinancialData(importText);
+      if (result.success) {
+        // Disparar eventos para atualizar todas as telas
+        triggerEvent('EXPENSE_UPDATED');
+        triggerEvent('INCOME_UPDATED');
+        setShowImportFinancialModal(false);
+        setImportText('');
+      }
+      Alert.alert(
+        result.success ? 'Sucesso' : 'Erro',
+        result.message
+      );
+    } catch (error) {
+      Alert.alert('Erro', 'Ocorreu um erro ao importar os dados financeiros.');
       console.error(error);
     } finally {
       setIsImporting(false);
@@ -171,11 +198,21 @@ export default function SettingsScreen() {
         
         <TouchableOpacity
           style={[styles.importButton, { backgroundColor: colors.primary }]}
-          onPress={() => setShowImportModal(true)}
+          onPress={() => setShowImportTravelModal(true)}
         >
           <View style={styles.buttonContent}>
             <Upload size={20} color="#fff" style={styles.buttonIcon} />
-            <Text style={styles.importButtonText}>Importar Dados</Text>
+            <Text style={styles.importButtonText}>Importar Dados de Viagem</Text>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.importButton, { backgroundColor: '#10b981' }]}
+          onPress={() => setShowImportFinancialModal(true)}
+        >
+          <View style={styles.buttonContent}>
+            <Wallet size={20} color="#fff" style={styles.buttonIcon} />
+            <Text style={styles.importButtonText}>Importar Dados Financeiros</Text>
           </View>
         </TouchableOpacity>
 
@@ -209,11 +246,12 @@ export default function SettingsScreen() {
         </View>
       </View>
 
+      {/* Modal para Importar Dados de Viagem */}
       <Modal
-        visible={showImportModal}
+        visible={showImportTravelModal}
         transparent={true}
         animationType="slide"
-        onRequestClose={() => setShowImportModal(false)}
+        onRequestClose={() => setShowImportTravelModal(false)}
       >
         <KeyboardAvoidingView 
           style={{ flex: 1 }}
@@ -222,7 +260,7 @@ export default function SettingsScreen() {
           <View style={[styles.modalContainer, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}>
             <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
               <Text style={[styles.modalTitle, { color: colors.text.primary }]}>
-                Importar Dados
+                Importar Dados de Viagem
               </Text>
               
               <ScrollView 
@@ -249,7 +287,7 @@ export default function SettingsScreen() {
                 <TouchableOpacity 
                   style={[styles.modalButton, styles.cancelButton, { borderColor: colors.border }]}
                   onPress={() => {
-                    setShowImportModal(false);
+                    setShowImportTravelModal(false);
                     setImportText('');
                   }}
                 >
@@ -262,7 +300,74 @@ export default function SettingsScreen() {
                     styles.importModalButton, 
                     { backgroundColor: colors.primary }
                   ]}
-                  onPress={handleImportData}
+                  onPress={handleImportTravelData}
+                  disabled={isImporting}
+                >
+                  <Text style={styles.importModalButtonText}>
+                    {isImporting ? 'Importando...' : 'Importar'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Modal para Importar Dados Financeiros */}
+      <Modal
+        visible={showImportFinancialModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowImportFinancialModal(false)}
+      >
+        <KeyboardAvoidingView 
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <View style={[styles.modalContainer, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}>
+            <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
+              <Text style={[styles.modalTitle, { color: colors.text.primary }]}>
+                Importar Dados Financeiros
+              </Text>
+              
+              <ScrollView 
+                style={styles.modalScroll}
+                keyboardShouldPersistTaps="handled"
+              >
+                <Text style={[styles.importLabel, { color: colors.text.secondary }]}>
+                  Cole o JSON com os dados no formato:{'\n'}
+                  {'{\n  "expenses": [\n    {\n      "category": "alimentacao",\n      "description": "Compras do mês",\n      "amount": 500,\n      "type": "variable"\n    }\n  ],\n  "income": [\n    {\n      "category": "work",\n      "description": "Salário",\n      "amount": 3000,\n      "type": "fixed"\n    }\n  ]\n}'}
+                </Text>
+
+                <TextInput
+                  style={[styles.textArea, { color: colors.text.primary, backgroundColor: colors.card }]}
+                  value={importText}
+                  onChangeText={setImportText}
+                  placeholder="Cole o JSON aqui..."
+                  placeholderTextColor={colors.text.secondary}
+                  multiline
+                  numberOfLines={10}
+                />
+              </ScrollView>
+              
+              <View style={styles.modalButtons}>
+                <TouchableOpacity 
+                  style={[styles.modalButton, styles.cancelButton, { borderColor: colors.border }]}
+                  onPress={() => {
+                    setShowImportFinancialModal(false);
+                    setImportText('');
+                  }}
+                >
+                  <Text style={{ color: colors.text.primary }}>Cancelar</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={[
+                    styles.modalButton, 
+                    styles.importModalButton, 
+                    { backgroundColor: '#10b981' }
+                  ]}
+                  onPress={handleImportFinancialData}
                   disabled={isImporting}
                 >
                   <Text style={styles.importModalButtonText}>
