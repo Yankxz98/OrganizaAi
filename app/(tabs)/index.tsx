@@ -65,6 +65,9 @@ export default function HomeScreen() {
       // Usar a ref em vez da dependência direta
       const dateToUse = currentDateRef.current;
       
+      // Verificar e propagar gastos marcados do mês anterior (se necessário)
+      await StorageService.checkAndPropagatePendingExpenses(dateToUse);
+      
       // Carregar rendas do mês
       const incomeData = await StorageService.loadIncome();
       // Carregar apenas despesas ativas (exclui gastos planejados não ativados)

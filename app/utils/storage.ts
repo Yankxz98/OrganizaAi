@@ -42,6 +42,13 @@ export interface Expense {
   type: 'fixed' | 'variable';
   isPlanned?: boolean; // Indica se é um gasto planejado
   isActivated?: boolean; // Indica se o gasto planejado foi ativado (só se aplica quando isPlanned = true)
+  propagateToNextMonth?: boolean; // Indica se deve ser propagado para o próximo mês
+  basedOnPreviousMonth?: { // Referência ao gasto do mês anterior (para gastos propagados)
+    previousAmount: number;
+    previousMonth: number;
+    previousYear: number;
+    originalId: number;
+  };
   installments?: {
     total: number;
     current: number;
@@ -264,6 +271,178 @@ export const StorageService = {
       return true;
     } catch (error) {
       console.error('Error deactivating planned expense:', error);
+      return false;
+    }
+  },
+
+  // Propagação de gastos para o próximo mês
+  async toggleExpensePropagation(expenseId: number, date: Date): Promise<boolean> {
+    try {
+      const allExpenses = await this.loadExpenses(date);
+      const expenseIndex = allExpenses.findIndex(exp => exp.id === expenseId);
+      
+      if (expenseIndex === -1) {
+        console.error('Expense not found');
+        return false;
+      }
+
+      allExpenses[expenseIndex].propagateToNextMonth = !allExpenses[expenseIndex].propagateToNextMonth;
+      
+      await this.saveExpenses(allExpenses, date);
+      return true;
+    } catch (error) {
+      console.error('Error toggling expense propagation:', error);
+      return false;
+    }
+  },
+
+  async propagateMarkedExpenses(targetDate: Date): Promise<number> {
+    try {
+      const previousDate = new Date(targetDate);
+      previousDate.setMonth(targetDate.getMonth() - 1);
+      
+      const previousExpenses = await this.loadExpenses(previousDate);
+      const toPropagateExpenses = previousExpenses.filter(exp => exp.propagateToNextMonth === true);
+      
+      if (toPropagateExpenses.length === 0) {
+        return 0;
+      }
+      
+      const currentExpenses = await this.loadExpenses(targetDate);
+      
+      const propagatedExpenses = toPropagateExpenses.map(expense => ({
+        id: Date.now() + Math.random(),
+        category: expense.category,
+        description: expense.description,
+        amount: expense.amount,
+        type: expense.type,
+        basedOnPreviousMonth: {
+          previousAmount: expense.amount,
+          previousMonth: previousDate.getMonth(),
+          previousYear: previousDate.getFullYear(),
+          originalId: expense.id
+        }
+      } as Expense)).filter(newExpense => 
+        !currentExpenses.some(existing => 
+          existing.category === newExpense.category && 
+          existing.description === newExpense.description &&
+          existing.basedOnPreviousMonth?.originalId === (newExpense.basedOnPreviousMonth?.originalId)
+        )
+      );
+      
+      if (propagatedExpenses.length > 0) {
+        await this.saveExpenses([...currentExpenses, ...propagatedExpenses], targetDate);
+      }
+      
+      return propagatedExpenses.length;
+    } catch (error) {
+      console.error('Error propagating expenses:', error);
+      return 0;
+    }
+  },
+
+  async checkAndPropagatePendingExpenses(currentDate: Date): Promise<void> {
+    try {
+      const propagatedCount = await this.propagateMarkedExpenses(currentDate);
+      
+      if (propagatedCount > 0) {
+        console.log(`Propagated ${propagatedCount} expenses to ${currentDate.getMonth() + 1}/${currentDate.getFullYear()}`);
+      }
+    } catch (error) {
+      console.error('Error checking and propagating expenses:', error);
+    }
+  },
+
+  // Nova função para propagação imediata quando marca checkbox
+  async propagateExpenseImmediately(expenseId: number, currentDate: Date): Promise<boolean> {
+    try {
+      const nextDate = new Date(currentDate);
+      nextDate.setMonth(currentDate.getMonth() + 1);
+      
+      const currentExpenses = await this.loadExpenses(currentDate);
+      const expense = currentExpenses.find(e => e.id === expenseId);
+      
+      if (!expense) {
+        return false;
+      }
+      
+      const nextMonthExpenses = await this.loadExpenses(nextDate);
+      
+      const alreadyExists = nextMonthExpenses.some(existing => 
+        existing.category === expense.category && 
+        existing.description === expense.description &&
+        existing.basedOnPreviousMonth?.originalId === expense.id
+      );
+      
+      if (alreadyExists) {
+        return true;
+      }
+      
+      const propagatedExpense: Expense = {
+        id: Date.now() + Math.random(),
+        category: expense.category,
+        description: expense.description,
+        amount: expense.amount,
+        type: expense.type,
+        basedOnPreviousMonth: {
+          previousAmount: expense.amount,
+          previousMonth: currentDate.getMonth(),
+          previousYear: currentDate.getFullYear(),
+          originalId: expense.id
+        }
+      };
+      
+      await this.saveExpenses([...nextMonthExpenses, propagatedExpense], nextDate);
+      return true;
+    } catch (error) {
+      console.error('Error in immediate propagation:', error);
+      return false;
+    }
+  },
+
+  // Nova função para remover propagação quando desmarca checkbox
+  async removePropagatedExpense(expenseId: number, currentDate: Date): Promise<boolean> {
+    try {
+      const nextDate = new Date(currentDate);
+      nextDate.setMonth(currentDate.getMonth() + 1);
+      
+      const nextMonthExpenses = await this.loadExpenses(nextDate);
+      
+      const filteredExpenses = nextMonthExpenses.filter(expense => 
+        !(expense.basedOnPreviousMonth?.originalId === expenseId)
+      );
+      
+      if (filteredExpenses.length !== nextMonthExpenses.length) {
+        await this.saveExpenses(filteredExpenses, nextDate);
+        return true;
+      } else {
+        return true;
+      }
+    } catch (error) {
+      console.error('Error removing propagated expense:', error);
+      return false;
+    }
+  },
+
+  // Função para limpar referência de propagação quando gasto é editado
+  async clearPropagationReference(expenseId: number, date: Date): Promise<boolean> {
+    try {
+      const expenses = await this.loadExpenses(date);
+      const expenseIndex = expenses.findIndex(exp => exp.id === expenseId);
+      
+      if (expenseIndex === -1) {
+        return false;
+      }
+
+      // Limpar a referência ao mês anterior
+      if (expenses[expenseIndex].basedOnPreviousMonth) {
+        delete expenses[expenseIndex].basedOnPreviousMonth;
+        await this.saveExpenses(expenses, date);
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error clearing propagation reference:', error);
       return false;
     }
   },

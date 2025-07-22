@@ -1,10 +1,11 @@
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Expense, StorageService } from '../utils/storage';
+
 import ExpenseForm from '../components/ExpenseForm';
 import { useEvent } from '../utils/EventContext';
 import { FinancingService } from '../utils/FinancingService';
+import { Expense, StorageService } from '../utils/storage';
 
 export default function AddExpenseScreen() {
   const [initialData, setInitialData] = useState<Expense | null>(null);
@@ -62,6 +63,13 @@ export default function AddExpenseScreen() {
 
       if (expenseId) {
         // Edição de despesa existente
+        
+        // Se o gasto tinha referência ao mês anterior e o valor foi alterado, limpar referência
+        if (initialData?.basedOnPreviousMonth && 
+            expense.amount !== initialData.basedOnPreviousMonth.previousAmount) {
+          delete expense.basedOnPreviousMonth;
+        }
+        
         if (expense.financing) {
           // Lógica para financiamento (não implementada completamente)
           Alert.alert('Atenção', 'A edição de financiamentos ainda não está implementada.');

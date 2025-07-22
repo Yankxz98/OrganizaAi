@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { Plus, Coffee, ShoppingBag, Car, Home, User, TrendingUp, Gamepad2, Package, Pencil, Trash2, ChevronDown, ChevronUp, CheckSquare, Square } from 'lucide-react-native';
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Platform, Switch } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import MonthSelector from '../components/MonthSelector';
@@ -102,24 +102,6 @@ export default function ExpensesScreen() {
         isPlanned: 'true'
       }
     });
-  };
-
-  const handleTogglePlannedExpense = async (expense: Expense) => {
-    try {
-      const success = expense.isActivated 
-        ? await StorageService.deactivatePlannedExpense(expense.id, currentDate)
-        : await StorageService.activatePlannedExpense(expense.id, currentDate);
-
-      if (success) {
-        await loadExpenses();
-        triggerEvent('EXPENSE_UPDATED');
-      } else {
-        Alert.alert('Erro', 'Não foi possível atualizar o gasto planejado');
-      }
-    } catch (error) {
-      console.error('Erro ao alternar gasto planejado:', error);
-      Alert.alert('Erro', 'Ocorreu um erro ao atualizar o gasto');
-    }
   };
 
   const handleEditExpense = (expense: Expense) => {
@@ -279,6 +261,33 @@ export default function ExpensesScreen() {
     return EXPENSE_CATEGORIES.find(cat => cat.id === categoryId) || EXPENSE_CATEGORIES[5]; // Default to 'others'
   };
 
+  const handleTogglePropagation = async (expenseId: number) => {
+    try {
+      const success = await StorageService.toggleExpensePropagation(expenseId, currentDate);
+      
+      if (success) {
+        const updatedExpenses = await StorageService.loadExpenses(currentDate);
+        const updatedExpense = updatedExpenses.find(e => e.id === expenseId);
+        
+        if (updatedExpense) {
+          if (updatedExpense.propagateToNextMonth) {
+            await StorageService.propagateExpenseImmediately(expenseId, currentDate);
+          } else {
+            await StorageService.removePropagatedExpense(expenseId, currentDate);
+          }
+        }
+        
+        await loadExpenses();
+        triggerEvent('EXPENSE_UPDATED');
+      } else {
+        Alert.alert('Erro', 'Não foi possível atualizar a configuração de propagação');
+      }
+    } catch (error) {
+      console.error('Erro ao toggle propagação:', error);
+      Alert.alert('Erro', 'Ocorreu um erro ao atualizar a propagação');
+    }
+  };
+
   return (
     <SafeAreaView style={{ flex: 1 }} edges={['right', 'left']}>
       <ScrollView 
@@ -356,6 +365,21 @@ export default function ExpensesScreen() {
                       <Text style={styles.financingBadge}> 💰 Financiamento</Text>
                     )}
                   </Text>
+                  
+                  {/* Mensagem "baseado em" - só mostra se valor não foi alterado */}
+                  {expense.basedOnPreviousMonth && 
+                   expense.amount === expense.basedOnPreviousMonth.previousAmount && (
+                    <Text style={styles.propagatedBadge}>
+                      📋 Baseado em {
+                        (() => {
+                          const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 
+                                        'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+                          return `${months[expense.basedOnPreviousMonth.previousMonth]}/${expense.basedOnPreviousMonth.previousYear}`;
+                        })()
+                      } (R$ {expense.basedOnPreviousMonth.previousAmount.toFixed(2)})
+                    </Text>
+                  )}
+                  
                   {expense.financing ? (
                     <View>
                       <Text style={styles.financingInfo}>
@@ -378,6 +402,24 @@ export default function ExpensesScreen() {
                       Parcela {expense.installments.current} de {expense.installments.total}
                     </Text>
                   ) : null}
+                  
+                  {/* Checkbox para propagação para próximo mês */}
+                  <Pressable 
+                    style={styles.propagationContainer}
+                    onPress={() => handleTogglePropagation(expense.id)}
+                  >
+                    {expense.propagateToNextMonth ? (
+                      <CheckSquare size={16} color="#22c55e" />
+                    ) : (
+                      <Square size={16} color="#94a3b8" />
+                    )}
+                    <Text style={[
+                      styles.propagationText,
+                      expense.propagateToNextMonth && styles.propagationTextActive
+                    ]}>
+                      Usar no próximo mês
+                    </Text>
+                  </Pressable>
                 </View>
                 <Text style={styles.expenseAmount}>R$ {expense.amount.toFixed(2)}</Text>
               </View>
@@ -807,5 +849,30 @@ const styles = StyleSheet.create({
   },
   simulatedValue: {
     color: '#f59e0b',
+  },
+  propagatedBadge: {
+    fontSize: 12,
+    color: '#059669',
+    fontWeight: '600',
+  },
+  propagationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  propagationText: {
+    fontSize: 12,
+    color: '#64748b',
+    marginLeft: 4,
+  },
+  propagationTextActive: {
+    color: '#166534',
+    fontWeight: '600',
   },
 });
