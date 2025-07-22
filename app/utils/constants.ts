@@ -18,16 +18,28 @@ export const EXPENSE_CATEGORIES = [
     color: '#3b82f6' // Blue
   },
   {
-    id: 'pet',
-    label: 'Pet',
-    icon: 'Heart',
-    color: '#ec4899' // Pink
+    id: 'home',
+    label: 'Casa & Contas',
+    icon: 'Home',
+    color: '#ef4444' // Red
   },
   {
     id: 'personal',
     label: 'Pessoal',
     icon: 'User',
     color: '#8b5cf6' // Purple
+  },
+  {
+    id: 'investment',
+    label: 'Investimento',
+    icon: 'TrendingUp',
+    color: '#10b981' // Green Dark
+  },
+  {
+    id: 'entertainment',
+    label: 'Lazer',
+    icon: 'Gamepad2',
+    color: '#f59e0b' // Yellow
   },
   {
     id: 'others',

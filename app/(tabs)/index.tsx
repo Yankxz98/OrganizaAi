@@ -3,9 +3,11 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import ExpenseCategoriesDropdown from '../components/ExpenseCategoriesDropdown';
 import ExpensesDropdown from '../components/ExpensesDropdown';
 import IncomeDropdown from '../components/IncomeDropdown';
 import MonthSelector from '../components/MonthSelector';
+import { EXPENSE_CATEGORIES } from '../utils/constants';
 import { useEvent } from '../utils/EventContext';
 import { FinancingService } from '../utils/FinancingService';
 import { StorageService, MonthlyData, Income, Expense } from '../utils/storage';
@@ -24,6 +26,7 @@ export default function HomeScreen() {
   const [variableExpenses, setVariableExpenses] = useState(0);
   const [baseIncome, setBaseIncome] = useState(0);
   const [extrasIncome, setExtrasIncome] = useState(0);
+  const [categoryExpenses, setCategoryExpenses] = useState<Record<string, number>>({});
   const { subscribeToEvent } = useEvent();
   
   // Usar uma ref para armazenar a data atual para evitar loops de dependência
@@ -32,6 +35,25 @@ export default function HomeScreen() {
   
   // Usar uma ref para controlar se estamos no meio de uma atualização
   const isUpdatingRef = useRef(false);
+
+  // Função para calcular gastos por categoria
+  const calculateCategoryExpenses = useCallback((expensesData: Expense[]) => {
+    const categoryTotals: Record<string, number> = {};
+    
+    // Inicializar todas as categorias com 0
+    EXPENSE_CATEGORIES.forEach(category => {
+      categoryTotals[category.id] = 0;
+    });
+    
+    // Somar gastos por categoria (apenas gastos ativos)
+    expensesData.forEach(expense => {
+      if (!expense.isPlanned || expense.isActivated) {
+        categoryTotals[expense.category] = (categoryTotals[expense.category] || 0) + expense.amount;
+      }
+    });
+    
+    return categoryTotals;
+  }, []);
 
   const loadData = useCallback(async () => {
     // Evitar múltiplas atualizações simultâneas
@@ -85,11 +107,15 @@ export default function HomeScreen() {
 
       const totalExpenses = Number((fixed + variable).toFixed(2));
       
+      // Calcular gastos por categoria
+      const categoryTotals = calculateCategoryExpenses(expensesData);
+      
       // Logs para verificar os valores calculados
       console.log('Dashboard - Valores calculados:');
       console.log('Total Despesas:', totalExpenses);
       console.log('Despesas Fixas:', fixed);
       console.log('Despesas Variáveis:', variable);
+      console.log('Gastos por categoria:', categoryTotals);
 
       // Calcular poupança (renda - despesas)
       const savings = totalIncome - totalExpenses;
@@ -98,6 +124,7 @@ export default function HomeScreen() {
       setVariableExpenses(variable);
       setBaseIncome(totalBaseIncome);
       setExtrasIncome(totalExtrasIncome);
+      setCategoryExpenses(categoryTotals);
 
       const newMonthlyData: MonthlyData = {
         totalIncome,
@@ -114,7 +141,7 @@ export default function HomeScreen() {
     } finally {
       isUpdatingRef.current = false;
     }
-  }, []); // Remover a dependência de currentDate
+  }, [calculateCategoryExpenses]); // Adicionar calculateCategoryExpenses como dependência
 
   // Função para verificar financiamentos
   const checkFinancings = useCallback(async () => {
@@ -201,6 +228,11 @@ export default function HomeScreen() {
             totalExpenses={monthlyData.totalExpenses}
             fixedExpenses={fixedExpenses}
             variableExpenses={variableExpenses}
+          />
+
+          <ExpenseCategoriesDropdown
+            categoryExpenses={categoryExpenses}
+            totalExpenses={monthlyData.totalExpenses}
           />
 
           <View style={styles.summaryCard}>

@@ -3,7 +3,7 @@ import { View, Text, TextInput, StyleSheet, Pressable, Alert, Switch, ScrollView
 import { useRouter } from 'expo-router';
 import { Expense } from '../utils/storage';
 import { EXPENSE_CATEGORIES } from '../utils/constants';
-import { Coffee, ShoppingBag, Car, Heart, User, Package } from 'lucide-react-native';
+import { Coffee, ShoppingBag, Car, Home, User, TrendingUp, Gamepad2, Package } from 'lucide-react-native';
 import MonthYearPicker from './MonthYearPicker';
 import { FinancingService } from '../utils/FinancingService';
 
@@ -21,10 +21,14 @@ const IconComponent = ({ name, color }: { name: string; color: string }) => {
       return <ShoppingBag size={24} color={color} />;
     case 'Car':
       return <Car size={24} color={color} />;
-    case 'Heart':
-      return <Heart size={24} color={color} />;
+    case 'Home':
+      return <Home size={24} color={color} />;
     case 'User':
       return <User size={24} color={color} />;
+    case 'TrendingUp':
+      return <TrendingUp size={24} color={color} />;
+    case 'Gamepad2':
+      return <Gamepad2 size={24} color={color} />;
     case 'Package':
       return <Package size={24} color={color} />;
     default:
