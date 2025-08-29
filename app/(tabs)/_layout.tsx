@@ -1,5 +1,4 @@
-import { Tabs } from 'expo-router';
-import { Chrome as Home, ChartPie as PieChart, Wallet, Plane, Cog } from 'lucide-react-native';
+import { Stack } from 'expo-router';
 import React from 'react';
 
 import { useTheme } from '../theme/ThemeContext';
@@ -8,15 +7,8 @@ export default function TabLayout() {
   const { colors } = useTheme();
 
   return (
-    <Tabs
+    <Stack
       screenOptions={{
-        tabBarStyle: {
-          backgroundColor: colors.card,
-          borderTopWidth: 1,
-          borderTopColor: colors.border,
-        },
-        tabBarActiveTintColor: colors.active,
-        tabBarInactiveTintColor: colors.inactive,
         headerStyle: {
           backgroundColor: colors.card,
         },
@@ -24,43 +16,43 @@ export default function TabLayout() {
           fontWeight: 'bold',
           color: colors.text.primary,
         },
+        headerShown: false, // Esconde todos os headers por padrão
       }}
     >
-      <Tabs.Screen
+      <Stack.Screen
         name="index"
         options={{
-          title: 'Resumos',
-          tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
+          headerShown: false,
         }}
       />
-      <Tabs.Screen
+      <Stack.Screen
         name="expenses"
         options={{
+          headerShown: true,
           title: 'Gastos',
-          tabBarIcon: ({ color, size }) => <PieChart size={size} color={color} />,
         }}
       />
-      <Tabs.Screen
+      <Stack.Screen
         name="income"
         options={{
+          headerShown: true,
           title: 'Rendas',
-          tabBarIcon: ({ color, size }) => <Wallet size={size} color={color} />,
         }}
       />
-      <Tabs.Screen
+      <Stack.Screen
         name="travels"
         options={{
+          headerShown: true,
           title: 'Viagens',
-          tabBarIcon: ({ color, size }) => <Plane size={size} color={color} />,
         }}
       />
-      <Tabs.Screen
+      <Stack.Screen
         name="settings"
         options={{
+          headerShown: true,
           title: 'Configurações',
-          tabBarIcon: ({ color, size }) => <Cog size={size} color={color} />,
         }}
       />
-    </Tabs>
+    </Stack>
   );
 }

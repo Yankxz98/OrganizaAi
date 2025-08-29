@@ -1,16 +1,102 @@
-import { ArrowUpRight, ArrowDownRight, Wallet } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
+import { ArrowUpRight, ArrowDownRight, Wallet, Menu, MoreVertical, Search, Plus, DollarSign, TrendingDown, X, PieChart, Plane, Cog, Home } from 'lucide-react-native';
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform, Pressable, TextInput, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Svg, { Polyline, Circle } from 'react-native-svg';
 
-import ExpenseCategoriesDropdown from '../components/ExpenseCategoriesDropdown';
-import ExpensesDropdown from '../components/ExpensesDropdown';
-import IncomeDropdown from '../components/IncomeDropdown';
 import MonthSelector from '../components/MonthSelector';
-import { EXPENSE_CATEGORIES } from '../utils/constants';
 import { useEvent } from '../utils/EventContext';
-import { FinancingService } from '../utils/FinancingService';
-import { StorageService, MonthlyData, Income, Expense } from '../utils/storage';
+import { StorageService, MonthlyData } from '../utils/storage';
+
+// Simple Line Chart Component
+interface ChartDataPoint {
+  month: string;
+  value: number;
+}
+
+interface SimpleLineChartProps {
+  data: ChartDataPoint[];
+  height?: number;
+}
+
+const SimpleLineChart: React.FC<SimpleLineChartProps> = ({ data, height = 60 }) => {
+  if (!data || data.length === 0) {
+    return (
+      <View style={{ height, justifyContent: 'center', alignItems: 'center' }}>
+        <Text style={{ color: '#64748b', fontSize: 12 }}>Sem dados para exibir</Text>
+      </View>
+    );
+  }
+
+  const maxValue = Math.max(...data.map(d => d.value));
+  const minValue = Math.min(...data.map(d => d.value));
+  const range = maxValue - minValue || 1;
+
+  const points = data.map((point, index) => {
+    const x = (index / (data.length - 1)) * 100;
+    const y = height - ((point.value - minValue) / range) * height;
+    return `${x},${y}`;
+  }).join(' ');
+
+  return (
+    <View style={{ height, paddingHorizontal: 10 }}>
+      {/* Grid lines */}
+      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+        {[0, 0.25, 0.5, 0.75, 1].map((ratio, index) => (
+          <View
+            key={index}
+            style={{
+              position: 'absolute',
+              top: ratio * height,
+              left: 0,
+              right: 0,
+              height: 1,
+              backgroundColor: '#f1f5f9',
+            }}
+          />
+        ))}
+      </View>
+
+      {/* Chart line */}
+      <Svg height={height} width="100%" style={{ position: 'absolute' }}>
+        <Polyline
+          points={points}
+          fill="none"
+          stroke="#3b82f6"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        {/* Data points */}
+        {data.map((point, index) => {
+          const x = (index / (data.length - 1)) * 100;
+          const y = height - ((point.value - minValue) / range) * height;
+          return (
+            <Circle
+              key={index}
+              cx={`${x}%`}
+              cy={y}
+              r={3}
+              fill="#3b82f6"
+              stroke="#ffffff"
+              strokeWidth={1}
+            />
+          );
+        })}
+      </Svg>
+
+      {/* Month labels */}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
+        {data.map((point, index) => (
+          <Text key={index} style={{ fontSize: 10, color: '#64748b', textAlign: 'center', flex: 1 }}>
+            {point.month}
+          </Text>
+        ))}
+      </View>
+    </View>
+  );
+};
 
 export default function HomeScreen() {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -22,12 +108,18 @@ export default function HomeScreen() {
     savings: 0,
     investments: 0
   });
-  const [fixedExpenses, setFixedExpenses] = useState(0);
-  const [variableExpenses, setVariableExpenses] = useState(0);
-  const [baseIncome, setBaseIncome] = useState(0);
-  const [extrasIncome, setExtrasIncome] = useState(0);
-  const [categoryExpenses, setCategoryExpenses] = useState<Record<string, number>>({});
+
+
+  // Novos estados para a nova estrutura
+  const [balanceView, setBalanceView] = useState<'inicial' | 'saldo' | 'previsto'>('saldo');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
+  const [showFabMenu, setShowFabMenu] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const drawerAnimation = useRef(new Animated.Value(0)).current;
+
   const { subscribeToEvent } = useEvent();
+  const router = useRouter();
   
   // Usar uma ref para armazenar a data atual para evitar loops de dependência
   const currentDateRef = useRef(currentDate);
@@ -36,24 +128,7 @@ export default function HomeScreen() {
   // Usar uma ref para controlar se estamos no meio de uma atualização
   const isUpdatingRef = useRef(false);
 
-  // Função para calcular gastos por categoria
-  const calculateCategoryExpenses = useCallback((expensesData: Expense[]) => {
-    const categoryTotals: Record<string, number> = {};
-    
-    // Inicializar todas as categorias com 0
-    EXPENSE_CATEGORIES.forEach(category => {
-      categoryTotals[category.id] = 0;
-    });
-    
-    // Somar gastos por categoria (apenas gastos ativos)
-    expensesData.forEach(expense => {
-      if (!expense.isPlanned || expense.isActivated) {
-        categoryTotals[expense.category] = (categoryTotals[expense.category] || 0) + expense.amount;
-      }
-    });
-    
-    return categoryTotals;
-  }, []);
+
 
   const loadData = useCallback(async () => {
     // Evitar múltiplas atualizações simultâneas
@@ -61,7 +136,7 @@ export default function HomeScreen() {
     isUpdatingRef.current = true;
     
     try {
-      console.log('Dashboard: Carregando dados...');
+
       // Usar a ref em vez da dependência direta
       const dateToUse = currentDateRef.current;
       
@@ -109,25 +184,9 @@ export default function HomeScreen() {
         .toFixed(2));
 
       const totalExpenses = Number((fixed + variable).toFixed(2));
-      
-      // Calcular gastos por categoria
-      const categoryTotals = calculateCategoryExpenses(expensesData);
-      
-      // Logs para verificar os valores calculados
-      console.log('Dashboard - Valores calculados:');
-      console.log('Total Despesas:', totalExpenses);
-      console.log('Despesas Fixas:', fixed);
-      console.log('Despesas Variáveis:', variable);
-      console.log('Gastos por categoria:', categoryTotals);
 
       // Calcular poupança (renda - despesas)
       const savings = totalIncome - totalExpenses;
-
-      setFixedExpenses(fixed);
-      setVariableExpenses(variable);
-      setBaseIncome(totalBaseIncome);
-      setExtrasIncome(totalExtrasIncome);
-      setCategoryExpenses(categoryTotals);
 
       const newMonthlyData: MonthlyData = {
         totalIncome,
@@ -144,30 +203,14 @@ export default function HomeScreen() {
     } finally {
       isUpdatingRef.current = false;
     }
-  }, [calculateCategoryExpenses]); // Adicionar calculateCategoryExpenses como dependência
-
-  // Função para verificar financiamentos
-  const checkFinancings = useCallback(async () => {
-    try {
-      const renewals = await FinancingService.checkFinancingRenewals();
-      renewals.forEach(renewal => {
-        if (!renewal.expense.financing?.reminderSent) {
-          FinancingService.showRenewalAlert(renewal);
-          // Marcar como aviso enviado
-          FinancingService.markReminderSent(renewal.expense);
-        }
-      });
-    } catch (error) {
-      console.error('Erro ao verificar financiamentos:', error);
-    }
   }, []);
+
+
 
   // Efeito para carregar dados quando a data mudar
   useEffect(() => {
     loadData();
-    // Verificar financiamentos a cada carregamento do dashboard
-    checkFinancings();
-  }, [currentDate, loadData, checkFinancings]); // Manter currentDate aqui para recarregar quando a data mudar
+  }, [currentDate, loadData]);
 
   // Efeito separado para inscrever nos eventos
   useEffect(() => {
@@ -195,90 +238,320 @@ export default function HomeScreen() {
     setCurrentDate(date);
   };
 
-  const calculatePercentage = (value: number, total: number) => {
-    if (total === 0) return '0';
-    return ((value / total) * 100).toFixed(1);
+  const handleAddIncome = () => {
+    setShowFabMenu(false);
+    router.push('/income');
   };
 
+  const handleAddExpense = () => {
+    setShowFabMenu(false);
+    router.push({
+      pathname: '/expenses/add',
+      params: {
+        month: currentDate.getMonth(),
+        year: currentDate.getFullYear()
+      }
+    });
+  };
+
+  const toggleDrawer = () => {
+    const toValue = isDrawerOpen ? 0 : 1;
+    setIsDrawerOpen(!isDrawerOpen);
+
+    Animated.timing(drawerAnimation, {
+      toValue,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const navigateToScreen = (screenName: string) => {
+    setIsDrawerOpen(false);
+    router.push(screenName);
+  };
+
+
+
+  const calculateBalanceValue = () => {
+    switch (balanceView) {
+      case 'inicial':
+        // Saldo inicial seria o saldo do mês anterior
+        return monthlyData.totalIncome * 0.1; // Placeholder - seria saldo do mês anterior
+      case 'saldo':
+        // Saldo atual = Receitas - Despesas
+        return monthlyData.totalIncome - monthlyData.totalExpenses;
+      case 'previsto':
+        // Saldo previsto = Saldo atual + projeções
+        return (monthlyData.totalIncome - monthlyData.totalExpenses) * 1.05; // Placeholder com 5% de crescimento
+      default:
+        return monthlyData.totalIncome - monthlyData.totalExpenses;
+    }
+  };
+
+  const getBalanceLabel = () => {
+    switch (balanceView) {
+      case 'inicial':
+        return 'Saldo Inicial';
+      case 'saldo':
+        return 'Saldo Disponível';
+      case 'previsto':
+        return 'Saldo Previsto';
+      default:
+        return 'Saldo Disponível';
+    }
+  };
+
+  const translateX = drawerAnimation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-300, 0],
+  });
+
   return (
-    <SafeAreaView style={{ flex: 1 }} edges={['right', 'left']}>
-      <ScrollView 
-        style={{ flex: 1 }}
-        contentContainerStyle={{
-          flexGrow: 1,
-          paddingBottom: Platform.OS === 'ios' ? 34 : 24,
-        }}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.monthSelectorContainer}>
+    <SafeAreaView style={styles.container}>
+      {/* Drawer Menu */}
+      {isDrawerOpen && (
+        <Pressable style={styles.overlay} onPress={toggleDrawer}>
+          <Animated.View
+            style={[
+              styles.drawer,
+              {
+                transform: [{ translateX }],
+              },
+            ]}
+          >
+            <View style={styles.drawerHeader}>
+              <Text style={styles.drawerTitle}>OrganizaAi</Text>
+              <Pressable onPress={toggleDrawer} style={styles.closeButton}>
+                <X size={24} color="#64748b" />
+              </Pressable>
+            </View>
+
+            <View style={styles.drawerContent}>
+              <Pressable
+                style={styles.drawerItem}
+                onPress={() => {
+                  setIsDrawerOpen(false);
+                  // Já estamos na tela principal, apenas fechar o drawer
+                }}
+              >
+                <Home size={20} color="#0f172a" />
+                <Text style={styles.drawerItemText}>Dashboard</Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.drawerItem}
+                onPress={() => navigateToScreen('expenses')}
+              >
+                <PieChart size={20} color="#0f172a" />
+                <Text style={styles.drawerItemText}>Gastos</Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.drawerItem}
+                onPress={() => navigateToScreen('income')}
+              >
+                <Wallet size={20} color="#0f172a" />
+                <Text style={styles.drawerItemText}>Rendas</Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.drawerItem}
+                onPress={() => navigateToScreen('travels')}
+              >
+                <Plane size={20} color="#0f172a" />
+                <Text style={styles.drawerItemText}>Viagens</Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.drawerItem}
+                onPress={() => navigateToScreen('settings')}
+              >
+                <Cog size={20} color="#0f172a" />
+                <Text style={styles.drawerItemText}>Configurações</Text>
+              </Pressable>
+            </View>
+          </Animated.View>
+        </Pressable>
+      )}
+
+      {/* Header (AppBar/Toolbar) */}
+      <View style={styles.header}>
+        <Pressable style={styles.headerButton} onPress={toggleDrawer}>
+          <Menu size={24} color="#64748b" />
+        </Pressable>
+
+        <View style={styles.dateNavigator}>
           <MonthSelector currentDate={currentDate} onMonthChange={handleMonthChange} />
         </View>
 
-        <View style={styles.summaryContainer}>
-          <View style={styles.balanceCard}>
-            <Text style={styles.balanceLabel}>Saldo Disponível</Text>
-            <Text style={styles.balance}>R$ {(monthlyData.totalIncome - monthlyData.totalExpenses).toFixed(2)}</Text>
+        <Pressable style={styles.headerButton} onPress={() => setShowSearch(!showSearch)}>
+          <Search size={24} color="#64748b" />
+        </Pressable>
+        <Pressable style={styles.headerButton}>
+          <MoreVertical size={24} color="#64748b" />
+        </Pressable>
+      </View>
+
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Indicadores de Saldo */}
+        <View style={styles.balanceSection}>
+          {/* Segmented Control */}
+          <View style={styles.segmentedControl}>
+            <Pressable
+              style={[styles.segmentButton, balanceView === 'inicial' && styles.segmentButtonActive]}
+              onPress={() => setBalanceView('inicial')}
+            >
+              <Text style={[styles.segmentText, balanceView === 'inicial' && styles.segmentTextActive]}>
+                Inicial
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[styles.segmentButton, balanceView === 'saldo' && styles.segmentButtonActive]}
+              onPress={() => setBalanceView('saldo')}
+            >
+              <Text style={[styles.segmentText, balanceView === 'saldo' && styles.segmentTextActive]}>
+                Saldo
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[styles.segmentButton, balanceView === 'previsto' && styles.segmentButtonActive]}
+              onPress={() => setBalanceView('previsto')}
+            >
+              <Text style={[styles.segmentText, balanceView === 'previsto' && styles.segmentTextActive]}>
+                Previsto
+              </Text>
+            </Pressable>
           </View>
 
-          <IncomeDropdown
-            totalIncome={monthlyData.totalIncome}
-            baseIncome={baseIncome}
-            extrasIncome={extrasIncome}
-          />
+          {/* KPI em destaque */}
+          <View style={styles.kpiContainer}>
+            <Text style={styles.kpiLabel}>{getBalanceLabel()}</Text>
+            <Text style={styles.kpiValue}>
+              R$ {calculateBalanceValue().toFixed(2)}
+            </Text>
+          </View>
 
-          <ExpensesDropdown
-            totalExpenses={monthlyData.totalExpenses}
-            fixedExpenses={fixedExpenses}
-            variableExpenses={variableExpenses}
-          />
+          {/* Mini gráfico de linha */}
+          <View style={styles.chartContainer}>
+            <SimpleLineChart
+              data={[
+                { month: 'Jan', value: monthlyData.totalIncome * 0.8 },
+                { month: 'Fev', value: monthlyData.totalIncome * 0.9 },
+                { month: 'Mar', value: monthlyData.totalIncome * 1.1 },
+                { month: 'Abr', value: monthlyData.totalIncome * 0.95 },
+                { month: 'Mai', value: monthlyData.totalIncome },
+                { month: 'Jun', value: monthlyData.totalIncome * 1.05 },
+              ]}
+            />
+          </View>
+        </View>
 
-          <ExpenseCategoriesDropdown
-            categoryExpenses={categoryExpenses}
-            totalExpenses={monthlyData.totalExpenses}
-          />
-
-          <View style={styles.summaryCard}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.cardTitle}>Poupança</Text>
-              <Wallet color="#3b82f6" size={20} />
-            </View>
-            <Text style={styles.cardValue}>R$ {monthlyData.savings.toFixed(2)}</Text>
-            <View style={styles.progressBar}>
-              <View 
-                style={[
-                  styles.progressFill, 
-                  { 
-                    width: `${calculatePercentage(monthlyData.savings, monthlyData.totalIncome)}%` as any,
-                    backgroundColor: '#3b82f6'
-                  }
-                ]} 
+        {/* Barra de Busca */}
+        {showSearch && (
+          <View style={styles.searchSection}>
+            <View style={styles.searchContainer}>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Buscar transações..."
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                autoFocus
               />
+              <Pressable onPress={() => {
+                setSearchQuery('');
+                setShowSearch(false);
+              }}>
+                <Text style={styles.searchCancelText}>Cancelar</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
+
+        {/* Seção Visão Geral */}
+        <View style={styles.overviewSection}>
+          <Text style={styles.sectionTitle}>Visão Geral</Text>
+          <View style={styles.overviewCard}>
+            <View style={styles.listItem}>
+              <ArrowUpRight size={20} color="#22c55e" />
+              <Text style={styles.listItemText}>Receitas</Text>
+              <Text style={styles.listItemValue}>R$ {monthlyData.totalIncome.toFixed(2)}</Text>
+            </View>
+
+            <View style={styles.listItem}>
+              <ArrowDownRight size={20} color="#ef4444" />
+              <Text style={styles.listItemText}>Despesas</Text>
+              <Text style={styles.listItemValue}>R$ {monthlyData.totalExpenses.toFixed(2)}</Text>
+            </View>
+
+            <View style={styles.listItem}>
+              <Wallet size={20} color="#3b82f6" />
+              <Text style={styles.listItemText}>Balanço transferências</Text>
+              <Text style={styles.listItemValue}>R$ {monthlyData.savings.toFixed(2)}</Text>
+            </View>
+
+            <View style={styles.listItem}>
+              <Text style={styles.listItemText}>Cartões de crédito</Text>
+              <Text style={styles.listItemValue}>R$ 0,00</Text>
             </View>
           </View>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Meta Mensal de Economia</Text>
-          <View style={styles.goalCard}>
-            <View style={styles.goalInfo}>
-              <Text style={styles.goalTitle}>Meta de Economia</Text>
-              <Text style={styles.goalTarget}>R$ 3.000</Text>
+        {/* Seção Contas */}
+        <View style={styles.accountsSection}>
+          <Text style={styles.sectionTitle}>Contas</Text>
+          <View style={styles.accountsCard}>
+            <View style={styles.listItem}>
+              <Text style={styles.listItemText}>Investimentos</Text>
+              <Text style={styles.listItemValue}>R$ 0,00</Text>
             </View>
-            <View style={styles.progressBar}>
-              <View 
-                style={[
-                  styles.progressFill, 
-                  { width: `${(monthlyData.savings / 3000) * 100}%` as any }
-                ]} 
-              />
+
+            <View style={styles.listItem}>
+              <Text style={styles.listItemText}>Minha Carteira</Text>
+              <Text style={styles.listItemValue}>R$ {monthlyData.savings.toFixed(2)}</Text>
             </View>
-            <Text style={styles.goalProgress}>
-              {((monthlyData.savings / 3000) * 100).toFixed(0)}% alcançado
-            </Text>
+
+            <View style={styles.listItem}>
+              <Text style={styles.listItemText}>Minha Conta Corrente</Text>
+              <Text style={styles.listItemValue}>R$ 0,00</Text>
+            </View>
+
+            <View style={[styles.listItem, styles.totalItem]}>
+              <Text style={styles.totalText}>Total</Text>
+              <Text style={styles.totalValue}>R$ {monthlyData.savings.toFixed(2)}</Text>
+            </View>
           </View>
         </View>
       </ScrollView>
+
+      {/* Floating Action Button Menu */}
+      <View style={styles.fabContainer}>
+        {/* Menu Options */}
+        {showFabMenu && (
+          <>
+            <Pressable style={[styles.fabMenuItem, styles.fabMenuTop]} onPress={handleAddIncome}>
+              <DollarSign size={20} color="#ffffff" />
+              <Text style={styles.fabMenuText}>Receita</Text>
+            </Pressable>
+            <Pressable style={[styles.fabMenuItem, styles.fabMenuBottom]} onPress={handleAddExpense}>
+              <TrendingDown size={20} color="#ffffff" />
+              <Text style={styles.fabMenuText}>Despesa</Text>
+            </Pressable>
+          </>
+        )}
+
+        {/* Main FAB */}
+        <Pressable
+          style={styles.fab}
+          onPress={() => setShowFabMenu(!showFabMenu)}
+        >
+          <Plus size={24} color="#ffffff" style={showFabMenu ? styles.fabIconRotated : {}} />
+        </Pressable>
+      </View>
     </SafeAreaView>
   );
 }
@@ -286,76 +559,127 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#f8fafc',
+  },
+  scrollContent: {
+    paddingBottom: Platform.OS === 'ios' ? 100 : 80,
   },
 
-  monthSelectorContainer: {
-    paddingTop: 8,
-  },
-  balanceCard: {
-    backgroundColor: '#ffffff',
-    padding: 20,
-    borderRadius: 12,
-    marginBottom: 16,
+  // Header Styles
+  header: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+  headerButton: {
+    padding: 8,
+    borderRadius: 8,
+  },
+  dateNavigator: {
+    flex: 1,
+    alignItems: 'center',
+  },
+
+  // Balance Section Styles
+  balanceSection: {
+    padding: 20,
+    backgroundColor: '#ffffff',
+    marginBottom: 8,
+  },
+  segmentedControl: {
+    flexDirection: 'row',
+    backgroundColor: '#f1f5f9',
+    borderRadius: 8,
+    padding: 2,
+    marginBottom: 20,
+  },
+  segmentButton: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  segmentButtonActive: {
+    backgroundColor: '#ffffff',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  balance: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#1e293b',
+  segmentText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#64748b',
   },
-  balanceLabel: {
+  segmentTextActive: {
+    color: '#0f172a',
+    fontWeight: '600',
+  },
+  kpiContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  kpiLabel: {
     fontSize: 14,
     color: '#64748b',
     marginBottom: 4,
   },
-  summaryContainer: {
-    padding: 20,
-    gap: 16,
-  },
-  summaryCard: {
-    backgroundColor: '#ffffff',
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1e293b',
-  },
-  cardValue: {
-    fontSize: 24,
+  kpiValue: {
+    fontSize: 36,
     fontWeight: 'bold',
-    color: '#1e293b',
+    color: '#0f172a',
+  },
+  chartContainer: {
+    height: 80,
+    backgroundColor: '#f8fafc',
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  chartPlaceholder: {
+    fontSize: 14,
+    color: '#64748b',
+  },
+
+  // Search Section Styles
+  searchSection: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: '#ffffff',
     marginBottom: 8,
   },
-  progressBar: {
-    height: 4,
-    backgroundColor: '#e2e8f0',
-    borderRadius: 2,
-    overflow: 'hidden',
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
-  progressFill: {
-    height: '100%',
-    borderRadius: 2,
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#0f172a',
   },
-  section: {
+  searchIcon: {
+    marginLeft: 8,
+  },
+  searchCancelText: {
+    color: '#3b82f6',
+    fontSize: 16,
+    fontWeight: '500',
+    marginLeft: 12,
+  },
+
+  // Overview Section Styles
+  overviewSection: {
     padding: 20,
   },
   sectionTitle: {
@@ -364,38 +688,173 @@ const styles = StyleSheet.create({
     color: '#0f172a',
     marginBottom: 16,
   },
-  goalCard: {
-    backgroundColor: '#fff',
+  overviewCard: {
+    backgroundColor: '#ffffff',
     borderRadius: 12,
-    padding: 16,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 3,
+    shadowRadius: 4,
     elevation: 3,
   },
-  goalInfo: {
+  listItem: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
   },
-  goalTitle: {
+  listItemText: {
+    flex: 1,
+    fontSize: 16,
+    color: '#0f172a',
+    marginLeft: 12,
+  },
+  listItemValue: {
     fontSize: 16,
     fontWeight: '600',
     color: '#0f172a',
   },
-  goalTarget: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#0ea5e9',
+
+  // Accounts Section Styles
+  accountsSection: {
+    padding: 20,
+    paddingBottom: 100,
   },
-  goalProgress: {
+  accountsCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  totalItem: {
+    borderTopWidth: 2,
+    borderTopColor: '#e2e8f0',
+    borderBottomWidth: 0,
+  },
+  totalText: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#0f172a',
+    marginLeft: 12,
+  },
+  totalValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#0f172a',
+  },
+
+  // FAB Styles
+  fabContainer: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    alignItems: 'center',
+  },
+  fab: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#3b82f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  fabIconRotated: {
+    transform: [{ rotate: '45deg' }],
+  },
+  fabMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#3b82f6',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 24,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+    minWidth: 120,
+  },
+  fabMenuTop: {
+    marginBottom: 4,
+  },
+  fabMenuBottom: {
+    marginBottom: 12,
+  },
+  fabMenuText: {
+    color: '#ffffff',
     fontSize: 14,
-    color: '#64748b',
-    textAlign: 'right',
+    fontWeight: '500',
+    marginLeft: 8,
+  },
+
+  // Drawer Styles
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    zIndex: 1000,
+  },
+  drawer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    bottom: 0,
+    width: 300,
+    backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 2, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 16,
+    zIndex: 1001,
+  },
+  drawerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+  drawerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#0f172a',
+  },
+  closeButton: {
+    padding: 4,
+  },
+  drawerContent: {
+    flex: 1,
+    paddingTop: 20,
+  },
+  drawerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  drawerItemText: {
+    fontSize: 16,
+    color: '#0f172a',
+    marginLeft: 16,
+    fontWeight: '500',
   },
 });
