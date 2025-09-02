@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Alert, TouchableOpacity, Modal, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, Alert, TouchableOpacity, Modal, TextInput, ScrollView, KeyboardAvoidingView, Platform, SafeAreaView } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { StorageService } from '../utils/storage';
 import { Moon, Sun, Smartphone, Upload, Wallet } from 'lucide-react-native';
@@ -103,7 +103,7 @@ export default function SettingsScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
       <Text style={[styles.title, { color: colors.text.primary }]}>Configurações</Text>
       
       <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}>
@@ -379,7 +379,7 @@ export default function SettingsScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 

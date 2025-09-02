@@ -1,11 +1,10 @@
 import { useRouter } from 'expo-router';
-import { ArrowUpRight, ArrowDownRight, Wallet, Menu, MoreVertical, Search, Plus, DollarSign, TrendingDown, X, PieChart, Plane, Cog, Home } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, ArrowDownRight, Wallet, Menu, MoreVertical, Plus, DollarSign, TrendingDown, TrendingUp, X, PieChart, Plane, Cog, Home } from 'lucide-react-native';
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, Platform, Pressable, TextInput, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform, Pressable, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Polyline, Circle } from 'react-native-svg';
 
-import MonthSelector from '../components/MonthSelector';
 import { useEvent } from '../utils/EventContext';
 import { StorageService, MonthlyData } from '../utils/storage';
 
@@ -110,10 +109,8 @@ export default function HomeScreen() {
   });
 
 
-  // Novos estados para a nova estrutura
+  // Estados conforme documentação
   const [balanceView, setBalanceView] = useState<'inicial' | 'saldo' | 'previsto'>('saldo');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showSearch, setShowSearch] = useState(false);
   const [showFabMenu, setShowFabMenu] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const drawerAnimation = useRef(new Animated.Value(0)).current;
@@ -238,21 +235,7 @@ export default function HomeScreen() {
     setCurrentDate(date);
   };
 
-  const handleAddIncome = () => {
-    setShowFabMenu(false);
-    router.push('/income');
-  };
 
-  const handleAddExpense = () => {
-    setShowFabMenu(false);
-    router.push({
-      pathname: '/expenses/add',
-      params: {
-        month: currentDate.getMonth(),
-        year: currentDate.getFullYear()
-      }
-    });
-  };
 
   const toggleDrawer = () => {
     const toValue = isDrawerOpen ? 0 : 1;
@@ -267,7 +250,7 @@ export default function HomeScreen() {
 
   const navigateToScreen = (screenName: string) => {
     setIsDrawerOpen(false);
-    router.push(screenName);
+    router.push(screenName as any);
   };
 
 
@@ -307,7 +290,7 @@ export default function HomeScreen() {
   });
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       {/* Drawer Menu */}
       {isDrawerOpen && (
         <Pressable style={styles.overlay} onPress={toggleDrawer}>
@@ -319,14 +302,15 @@ export default function HomeScreen() {
               },
             ]}
           >
-            <View style={styles.drawerHeader}>
-              <Text style={styles.drawerTitle}>OrganizaAi</Text>
-              <Pressable onPress={toggleDrawer} style={styles.closeButton}>
-                <X size={24} color="#64748b" />
-              </Pressable>
-            </View>
+            <SafeAreaView style={styles.drawerSafeArea} edges={['top']}>
+              <View style={styles.drawerHeader}>
+                <Text style={styles.drawerTitle}>OrganizaAi</Text>
+                <Pressable onPress={toggleDrawer} style={styles.closeButton}>
+                  <X size={24} color="#64748b" />
+                </Pressable>
+              </View>
 
-            <View style={styles.drawerContent}>
+              <View style={styles.drawerContent}>
               <Pressable
                 style={styles.drawerItem}
                 onPress={() => {
@@ -340,7 +324,7 @@ export default function HomeScreen() {
 
               <Pressable
                 style={styles.drawerItem}
-                onPress={() => navigateToScreen('expenses')}
+                onPress={() => navigateToScreen('/(tabs)/expenses')}
               >
                 <PieChart size={20} color="#0f172a" />
                 <Text style={styles.drawerItemText}>Gastos</Text>
@@ -348,7 +332,7 @@ export default function HomeScreen() {
 
               <Pressable
                 style={styles.drawerItem}
-                onPress={() => navigateToScreen('income')}
+                onPress={() => navigateToScreen('/(tabs)/income')}
               >
                 <Wallet size={20} color="#0f172a" />
                 <Text style={styles.drawerItemText}>Rendas</Text>
@@ -356,7 +340,7 @@ export default function HomeScreen() {
 
               <Pressable
                 style={styles.drawerItem}
-                onPress={() => navigateToScreen('travels')}
+                onPress={() => navigateToScreen('/travels')}
               >
                 <Plane size={20} color="#0f172a" />
                 <Text style={styles.drawerItemText}>Viagens</Text>
@@ -364,29 +348,54 @@ export default function HomeScreen() {
 
               <Pressable
                 style={styles.drawerItem}
-                onPress={() => navigateToScreen('settings')}
+                onPress={() => navigateToScreen('/settings')}
               >
                 <Cog size={20} color="#0f172a" />
                 <Text style={styles.drawerItemText}>Configurações</Text>
               </Pressable>
             </View>
+            </SafeAreaView>
           </Animated.View>
         </Pressable>
       )}
 
-      {/* Header (AppBar/Toolbar) */}
+      {/* Header (AppBar/Toolbar) - Conforme documentação */}
       <View style={styles.header}>
+        {/* Botão Menu Hambúrguer - Canto superior esquerdo */}
         <Pressable style={styles.headerButton} onPress={toggleDrawer}>
           <Menu size={24} color="#64748b" />
         </Pressable>
 
-        <View style={styles.dateNavigator}>
-          <MonthSelector currentDate={currentDate} onMonthChange={handleMonthChange} />
+        {/* Navegação de mês - Centralizada */}
+        <View style={styles.monthNavigation}>
+          <Pressable
+            style={styles.monthButton}
+            onPress={() => {
+              const newDate = new Date(currentDate);
+              newDate.setMonth(currentDate.getMonth() - 1);
+              handleMonthChange(newDate);
+            }}
+          >
+            <ChevronLeft size={20} color="#64748b" />
+          </Pressable>
+
+          <Text style={styles.monthText}>
+            {currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+          </Text>
+
+          <Pressable
+            style={styles.monthButton}
+            onPress={() => {
+              const newDate = new Date(currentDate);
+              newDate.setMonth(currentDate.getMonth() + 1);
+              handleMonthChange(newDate);
+            }}
+          >
+            <ChevronRight size={20} color="#64748b" />
+          </Pressable>
         </View>
 
-        <Pressable style={styles.headerButton} onPress={() => setShowSearch(!showSearch)}>
-          <Search size={24} color="#64748b" />
-        </Pressable>
+        {/* Botão de Mais Opções - Canto superior direito */}
         <Pressable style={styles.headerButton}>
           <MoreVertical size={24} color="#64748b" />
         </Pressable>
@@ -451,74 +460,64 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* Barra de Busca */}
-        {showSearch && (
-          <View style={styles.searchSection}>
-            <View style={styles.searchContainer}>
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Buscar transações..."
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                autoFocus
-              />
-              <Pressable onPress={() => {
-                setSearchQuery('');
-                setShowSearch(false);
-              }}>
-                <Text style={styles.searchCancelText}>Cancelar</Text>
-              </Pressable>
-            </View>
-          </View>
-        )}
 
-        {/* Seção Visão Geral */}
+
+        {/* Seção Visão Geral - Conforme documentação */}
         <View style={styles.overviewSection}>
           <Text style={styles.sectionTitle}>Visão Geral</Text>
           <View style={styles.overviewCard}>
-            <View style={styles.listItem}>
-              <ArrowUpRight size={20} color="#22c55e" />
+            <Pressable
+              style={styles.listItem}
+              onPress={() => router.push('/(tabs)/income')}
+            >
+              <TrendingUp size={20} color="#22c55e" />
               <Text style={styles.listItemText}>Receitas</Text>
               <Text style={styles.listItemValue}>R$ {monthlyData.totalIncome.toFixed(2)}</Text>
-            </View>
+            </Pressable>
 
-            <View style={styles.listItem}>
+            <Pressable
+              style={styles.listItem}
+              onPress={() => router.push('/(tabs)/expenses')}
+            >
               <ArrowDownRight size={20} color="#ef4444" />
               <Text style={styles.listItemText}>Despesas</Text>
               <Text style={styles.listItemValue}>R$ {monthlyData.totalExpenses.toFixed(2)}</Text>
-            </View>
+            </Pressable>
 
-            <View style={styles.listItem}>
+            <Pressable style={styles.listItem}>
               <Wallet size={20} color="#3b82f6" />
-              <Text style={styles.listItemText}>Balanço transferências</Text>
+              <Text style={styles.listItemText}>Balanço de Transferências</Text>
               <Text style={styles.listItemValue}>R$ {monthlyData.savings.toFixed(2)}</Text>
-            </View>
+            </Pressable>
 
-            <View style={styles.listItem}>
-              <Text style={styles.listItemText}>Cartões de crédito</Text>
+            <Pressable style={styles.listItem}>
+              <Text style={styles.listItemText}>Cartões de Crédito</Text>
               <Text style={styles.listItemValue}>R$ 0,00</Text>
-            </View>
+            </Pressable>
           </View>
         </View>
 
-        {/* Seção Contas */}
+        {/* Seção Contas - Conforme documentação */}
         <View style={styles.accountsSection}>
           <Text style={styles.sectionTitle}>Contas</Text>
           <View style={styles.accountsCard}>
-            <View style={styles.listItem}>
+            <Pressable style={styles.listItem}>
+              <Wallet size={20} color="#64748b" />
               <Text style={styles.listItemText}>Investimentos</Text>
               <Text style={styles.listItemValue}>R$ 0,00</Text>
-            </View>
+            </Pressable>
 
-            <View style={styles.listItem}>
-              <Text style={styles.listItemText}>Minha Carteira</Text>
+            <Pressable style={styles.listItem}>
+              <Wallet size={20} color="#64748b" />
+              <Text style={styles.listItemText}>Carteira</Text>
               <Text style={styles.listItemValue}>R$ {monthlyData.savings.toFixed(2)}</Text>
-            </View>
+            </Pressable>
 
-            <View style={styles.listItem}>
-              <Text style={styles.listItemText}>Minha Conta Corrente</Text>
+            <Pressable style={styles.listItem}>
+              <Wallet size={20} color="#64748b" />
+              <Text style={styles.listItemText}>Conta Corrente</Text>
               <Text style={styles.listItemValue}>R$ 0,00</Text>
-            </View>
+            </Pressable>
 
             <View style={[styles.listItem, styles.totalItem]}>
               <Text style={styles.totalText}>Total</Text>
@@ -528,20 +527,32 @@ export default function HomeScreen() {
         </View>
       </ScrollView>
 
-      {/* Floating Action Button Menu */}
+      {/* Floating Action Button - Conforme documentação */}
       <View style={styles.fabContainer}>
         {/* Menu Options */}
         {showFabMenu && (
-          <>
-            <Pressable style={[styles.fabMenuItem, styles.fabMenuTop]} onPress={handleAddIncome}>
+          <View style={styles.fabMenu}>
+            <Pressable
+              style={[styles.fabMenuItem, styles.fabMenuTop]}
+              onPress={() => {
+                setShowFabMenu(false);
+                router.push('/(tabs)/income');
+              }}
+            >
               <DollarSign size={20} color="#ffffff" />
-              <Text style={styles.fabMenuText}>Receita</Text>
+              <Text style={styles.fabMenuText}>Renda</Text>
             </Pressable>
-            <Pressable style={[styles.fabMenuItem, styles.fabMenuBottom]} onPress={handleAddExpense}>
+            <Pressable
+              style={[styles.fabMenuItem, styles.fabMenuBottom]}
+              onPress={() => {
+                setShowFabMenu(false);
+                router.push('/(tabs)/expenses');
+              }}
+            >
               <TrendingDown size={20} color="#ffffff" />
               <Text style={styles.fabMenuText}>Despesa</Text>
             </Pressable>
-          </>
+          </View>
         )}
 
         {/* Main FAB */}
@@ -565,7 +576,7 @@ const styles = StyleSheet.create({
     paddingBottom: Platform.OS === 'ios' ? 100 : 80,
   },
 
-  // Header Styles
+  // Header Styles - Conforme documentação
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -580,9 +591,21 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 8,
   },
-  dateNavigator: {
-    flex: 1,
+  monthNavigation: {
+    flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+  },
+  monthButton: {
+    padding: 8,
+    borderRadius: 8,
+  },
+  monthText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#0f172a',
+    marginHorizontal: 12,
   },
 
   // Balance Section Styles
@@ -648,35 +671,7 @@ const styles = StyleSheet.create({
     color: '#64748b',
   },
 
-  // Search Section Styles
-  searchSection: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    backgroundColor: '#ffffff',
-    marginBottom: 8,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f8fafc',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    color: '#0f172a',
-  },
-  searchIcon: {
-    marginLeft: 8,
-  },
-  searchCancelText: {
-    color: '#3b82f6',
-    fontSize: 16,
-    fontWeight: '500',
-    marginLeft: 12,
-  },
+
 
   // Overview Section Styles
   overviewSection: {
@@ -755,6 +750,9 @@ const styles = StyleSheet.create({
     right: 24,
     alignItems: 'center',
   },
+  fabMenu: {
+    marginBottom: 12,
+  },
   fab: {
     width: 56,
     height: 56,
@@ -790,7 +788,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   fabMenuBottom: {
-    marginBottom: 12,
+    marginBottom: 0,
   },
   fabMenuText: {
     color: '#ffffff',
@@ -823,11 +821,16 @@ const styles = StyleSheet.create({
     elevation: 16,
     zIndex: 1001,
   },
+  drawerSafeArea: {
+    flex: 1,
+  },
   drawerHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    paddingTop: Platform.OS === 'ios' ? 10 : 16, // Espaço reduzido para Safe Area
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
   },
@@ -841,7 +844,7 @@ const styles = StyleSheet.create({
   },
   drawerContent: {
     flex: 1,
-    paddingTop: 20,
+    paddingTop: 0,
   },
   drawerItem: {
     flexDirection: 'row',

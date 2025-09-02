@@ -35,8 +35,7 @@ export default function TabLayout() {
       <Stack.Screen
         name="income"
         options={{
-          headerShown: true,
-          title: 'Rendas',
+          headerShown: false,
         }}
       />
       <Stack.Screen

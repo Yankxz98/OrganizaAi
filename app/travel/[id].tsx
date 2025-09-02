@@ -105,10 +105,11 @@ export default function TravelForm() {
   };
 
   return (
-    <KeyboardAvoidingView 
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
+    <SafeAreaView style={{ flex: 1 }} edges={['top', 'left', 'right']}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+      >
       <ScrollView 
         style={[styles.container, { backgroundColor: colors.background }]}
         keyboardShouldPersistTaps="handled"
@@ -182,7 +183,8 @@ export default function TravelForm() {
         </Pressable>
       </View>
       </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 

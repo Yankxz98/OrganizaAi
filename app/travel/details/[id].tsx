@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme/ThemeContext';
 import { Travel, TravelExpense as BaseTravelExpense, TravelActivity, StorageService } from '../../utils/storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Plus, Edit2, ArrowLeft, Calendar, MapPin, DollarSign, Wallet, Briefcase, CreditCard, TrendingDown, TrendingUp, X, Check, Trash2 } from 'lucide-react-native';
+import { Plus, Edit2, ChevronLeft, Calendar, MapPin, DollarSign, Wallet, Briefcase, CreditCard, TrendingDown, TrendingUp, X, Check, Trash2 } from 'lucide-react-native';
 import TravelItinerary from '../../components/TravelItinerary';
 import { useEvent } from '../../utils/EventContext';
 
@@ -638,7 +638,7 @@ export default function TravelDetails() {
         <View style={[styles.container, { backgroundColor: colors.background, paddingTop: 0 }]}>
           <View style={[styles.header, { backgroundColor: colors.card, elevation: 0, shadowOpacity: 0 }]}>
             <Pressable onPress={() => router.back()} style={styles.backButton}>
-              <ArrowLeft size={24} color={colors.text.primary} />
+              <ChevronLeft size={24} color={colors.text.primary} />
             </Pressable>
             <View style={styles.headerContent}>
               <Text style={[styles.title, { color: colors.text.primary }]}>{travel.name}</Text>

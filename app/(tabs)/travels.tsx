@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Plus, Trash2, ChevronDown, ChevronUp, ArrowRight } from 'lucide-react-native';
+import { Plus, Trash2, ChevronDown, ChevronUp, ChevronRight } from 'lucide-react-native';
 import { Travel, StorageService } from '../utils/storage';
 import { useTheme } from '../theme/ThemeContext';
 import { useEvent } from '../utils/EventContext';
@@ -223,7 +223,7 @@ export default function TravelsScreen() {
                       onPress={() => handleViewTravelDetails(item.id)}
                     >
                       <Text style={styles.actionButtonText}>Ver Detalhes</Text>
-                      <ArrowRight size={16} color="#fff" style={styles.actionIcon} />
+                      <ChevronRight size={16} color="#fff" style={styles.actionIcon} />
                     </TouchableOpacity>
                     
                     <TouchableOpacity
